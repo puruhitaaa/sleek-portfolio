@@ -88,7 +88,7 @@ function Header() {
               </Button>
             ) : (
               <Button
-                className="bg-green-700 hover:bg-green-900"
+                className="bg-green-700 text-zinc-50 hover:bg-green-900"
                 size="icon"
                 onClick={handleLogin}
               >
