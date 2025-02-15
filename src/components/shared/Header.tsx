@@ -7,8 +7,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ModeToggle } from "./ModeToggle";
 import { Button } from "../ui/button";
-import { LogOut } from "lucide-react";
-import { signOut, useSession } from "@/lib/auth-client";
+import { LogIn, LogOut } from "lucide-react";
+import { signIn, signOut, useSession } from "@/lib/auth-client";
 
 function Header() {
   const pathname = usePathname();
@@ -16,6 +16,11 @@ function Header() {
   const isActive = (path: string) => pathname === path;
 
   const { data: authData } = useSession();
+
+  const handleLogin = async () => {
+    await signIn.social({ provider: "google" });
+  };
+
   const handleLogout = async () => {
     await signOut();
   };
@@ -71,7 +76,15 @@ function Header() {
               <Button variant="destructive" size="icon" onClick={handleLogout}>
                 <LogOut />
               </Button>
-            ) : null}
+            ) : (
+              <Button
+                className="bg-green-700 hover:bg-green-900"
+                size="icon"
+                onClick={handleLogin}
+              >
+                <LogIn />
+              </Button>
+            )}
           </div>
         </div>
       </nav>
