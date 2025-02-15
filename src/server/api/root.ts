@@ -1,5 +1,10 @@
 import { postRouter } from "@/server/api/routers/post";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
+import { guestbookRouter } from "@/server/api/routers/guestbook";
+import { spotifyRouter } from "@/server/api/routers/spotify";
+import { projectRouter } from "@/server/api/routers/project";
+import { logsRouter } from "@/server/api/routers/logs";
+import { cloudinaryRouter } from "@/server/api/routers/cloudinary";
 
 /**
  * This is the primary router for your server.
@@ -8,6 +13,11 @@ import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
  */
 export const appRouter = createTRPCRouter({
   post: postRouter,
+  project: projectRouter,
+  guestbook: guestbookRouter,
+  spotify: spotifyRouter,
+  logs: logsRouter,
+  cloudinary: cloudinaryRouter,
 });
 
 // export type definition of API

@@ -11,6 +11,10 @@ export const env = createEnv({
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
+    CLOUDINARY_API_SECRET: z.string(),
+    BETTER_AUTH_SECRET: z.string(),
+    UPSTASH_REDIS_REST_TOKEN: z.string(),
+    GOOGLE_CLIENT_SECRET: z.string(),
   },
 
   /**
@@ -20,6 +24,16 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_CLOUDINARY_API_KEY: z.string(),
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME: z.string(),
+    NEXT_PUBLIC_UPSTASH_REDIS_REST_URL: z.string(),
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: z.string(),
+    NEXT_PUBLIC_LASTFM_API_KEY: z.string(),
+    NEXT_PUBLIC_LASTFM_USERNAME: z.string(),
+    NEXT_PUBLIC_FRONTEND_API_URL_DEVELOPMENT: z.string().url(),
+    NEXT_PUBLIC_FRONTEND_API_URL_PRODUCTION: z.string().url(),
+    NEXT_PUBLIC_BETTER_AUTH_URL_DEVELOPMENT: z.string().url(),
+    NEXT_PUBLIC_BETTER_AUTH_URL_PRODUCTION: z.string().url(),
   },
 
   /**
@@ -27,9 +41,29 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    NEXT_PUBLIC_FRONTEND_API_URL_DEVELOPMENT:
+      process.env.NEXT_PUBLIC_FRONTEND_API_URL_DEVELOPMENT,
+    NEXT_PUBLIC_FRONTEND_API_URL_PRODUCTION:
+      process.env.NEXT_PUBLIC_FRONTEND_API_URL_PRODUCTION,
     DATABASE_URL: process.env.DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
-    // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    NEXT_PUBLIC_CLOUDINARY_API_KEY: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
+    NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME:
+      process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+    NEXT_PUBLIC_UPSTASH_REDIS_REST_URL:
+      process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+    NEXT_PUBLIC_LASTFM_API_KEY: process.env.NEXT_PUBLIC_LASTFM_API_KEY,
+    NEXT_PUBLIC_LASTFM_API_USERNAME:
+      process.env.NEXT_PUBLIC_LASTFM_API_USERNAME,
+    NEXT_PUBLIC_BETTER_AUTH_URL_DEVELOPMENT:
+      process.env.NEXT_PUBLIC_BETTER_AUTH_URL_DEVELOPMENT,
+    NEXT_PUBLIC_BETTER_AUTH_URL_PRODUCTION:
+      process.env.NEXT_PUBLIC_BETTER_AUTH_URL_PRODUCTION,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

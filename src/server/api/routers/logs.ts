@@ -1,52 +1,63 @@
-import { posts } from "@/server/db/schema";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
+import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
 import { z } from "zod";
-import { asc, desc, lt, and, eq } from "drizzle-orm";
+import { logs } from "@/server/db/schema";
 import { TRPCError } from "@trpc/server";
 
-const postSchema = z.object({
+const logSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
+  category: z.string().min(1),
 });
 
-const updatePostSchema = postSchema.extend({
+const updateLogSchema = logSchema.extend({
   id: z.string(),
 });
 
-const deletePostSchema = updatePostSchema.pick({ id: true });
+const deleteLogSchema = updateLogSchema.pick({ id: true });
 
-export const postRouter = createTRPCRouter({
+export const logsRouter = createTRPCRouter({
   list: publicProcedure
     .input(
       z.object({
-        limit: z.number().min(1).max(100).default(10),
+        limit: z.number().min(1).max(100).default(6),
         cursor: z.string().optional(),
+        category: z.string().optional(),
+        published: z.enum(["all", "published"]).default("published").optional(),
         sort: z.enum(["newest", "oldest"]).default("newest").optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const { db } = ctx;
-      const { limit, cursor, sort } = input;
+      const { limit, cursor, category, published, sort } = input;
 
       const filters = [];
 
+      if (category && category !== "all") {
+        filters.push(eq(logs.category, category));
+      }
+
+      if (published !== "all") {
+        filters.push(eq(logs.isPublished, true));
+      }
+
       if (cursor) {
-        filters.push(lt(posts.id, cursor));
+        filters.push(lt(logs.id, cursor));
       }
 
       const sortOrder = (() => {
         switch (sort) {
           case "oldest":
-            return [asc(posts.createdAt)];
+            return [asc(logs.createdAt)];
           case "newest":
           default:
-            return [desc(posts.createdAt)];
+            return [desc(logs.createdAt)];
         }
       })();
 
       const items = await db
         .select()
-        .from(posts)
+        .from(logs)
         .where(filters.length ? and(...filters) : undefined)
         .orderBy(...sortOrder)
         .limit(limit + 1);
@@ -59,66 +70,55 @@ export const postRouter = createTRPCRouter({
 
       return { items, nextCursor };
     }),
-  create: adminProcedure.input(postSchema).mutation(async ({ ctx, input }) => {
+
+  create: adminProcedure.input(logSchema).mutation(async ({ ctx, input }) => {
     const { db } = ctx;
-    const [post] = await db
-      .insert(posts)
+    const [log] = await db
+      .insert(logs)
+
       .values({
         title: input.title,
         content: input.content,
+        category: input.category,
         isPublished: true,
       })
       .returning();
 
-    return post;
+    return log;
   }),
+
   update: adminProcedure
-    .input(updatePostSchema)
+    .input(updateLogSchema)
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
       const { id, ...updateData } = input;
 
-      const [updatedPost] = await db
-        .update(posts)
+      const existingLog = await db.select().from(logs).where(eq(logs.id, id));
+
+      if (!existingLog) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Log not found" });
+      }
+
+      const [updatedLog] = await db
+        .update(logs)
         .set({
           ...updateData,
           updatedAt: new Date(),
         })
-        .where(eq(posts.id, id))
+        .where(eq(logs.id, id))
         .returning();
 
-      return updatedPost;
+      return updatedLog;
     }),
+
   delete: adminProcedure
-    .input(deletePostSchema)
+    .input(deleteLogSchema)
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
       const { id } = input;
 
-      await db.delete(posts).where(eq(posts.id, id));
+      await db.delete(logs).where(eq(logs.id, id));
 
       return { success: true };
-    }),
-  detail: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
-
-      const post = await db
-        .select()
-        .from(posts)
-        .where(eq(posts.id, id))
-        .limit(1)
-        .then((res) => res[0]);
-
-      if (!post) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Post not found",
-        });
-      }
-
-      return post;
     }),
 });

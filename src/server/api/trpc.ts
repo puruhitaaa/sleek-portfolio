@@ -6,11 +6,12 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
+import { auth } from "@/lib/auth";
 
 /**
  * 1. CONTEXT
@@ -25,8 +26,15 @@ import { db } from "@/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const authData = await auth.api.getSession({
+    headers: opts.headers,
+  });
+
   return {
     db,
+    session: authData?.session
+      ? { session: authData.session, user: authData.user }
+      : null,
     ...opts,
   };
 };
@@ -74,26 +82,26 @@ export const createCallerFactory = t.createCallerFactory;
 export const createTRPCRouter = t.router;
 
 /**
- * Middleware for timing procedure execution and adding an artificial delay in development.
- *
- * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
- * network latency that would occur in production but not in local development.
+ * Middleware for checking if the user is authenticated.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
-  const start = Date.now();
+const authMiddleware = t.middleware(async ({ next, ctx }) => {
+  const { session } = ctx;
 
-  if (t._config.isDev) {
-    // artificial delay in dev
-    const waitMs = Math.floor(Math.random() * 400) + 100;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  if (!session) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
   }
 
-  const result = await next();
+  return next({ ctx: { ...ctx, session: ctx.session } });
+});
 
-  const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+const adminMiddleware = t.middleware(async ({ next, ctx }) => {
+  const { session } = ctx;
 
-  return result;
+  if (session?.user.role !== "admin") {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  return next({ ctx });
 });
 
 /**
@@ -103,4 +111,19 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(timingMiddleware);
+export const publicProcedure = t.procedure;
+
+/**
+ * Private (authenticated) procedure
+ *
+ * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
+ * guarantee that a user querying is authorized, but you can still access user session data if they
+ */
+export const privateProcedure = t.procedure.use(authMiddleware);
+
+/**
+ * Admin (authenticated) procedure
+ */
+export const adminProcedure = t.procedure
+  .use(authMiddleware)
+  .use(adminMiddleware);
