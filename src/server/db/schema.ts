@@ -14,7 +14,7 @@ import { cuid2 } from "drizzle-cuid2/postgres";
 export const rolesEnum = pgEnum("roles", ["user", "admin"]);
 
 export const users = pgTable("user", {
-  id: cuid2("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull(),
@@ -25,7 +25,7 @@ export const users = pgTable("user", {
 });
 
 export const sessions = pgTable("session", {
-  id: cuid2("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey(),
   expiresAt: timestamp("expires_at").notNull(),
   token: text("token").notNull().unique(),
   createdAt: timestamp("created_at").notNull(),
@@ -38,7 +38,7 @@ export const sessions = pgTable("session", {
 });
 
 export const accounts = pgTable("account", {
-  id: cuid2("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey(),
   accountId: text("account_id").notNull(),
   providerId: text("provider_id").notNull(),
   userId: text("user_id")
@@ -56,7 +56,7 @@ export const accounts = pgTable("account", {
 });
 
 export const verifications = pgTable("verification", {
-  id: cuid2("id").defaultRandom().primaryKey(),
+  id: text("id").primaryKey(),
   identifier: text("identifier").notNull(),
   value: text("value").notNull(),
   expiresAt: timestamp("expires_at").notNull(),
@@ -119,7 +119,7 @@ export const comments = pgTable(
   "comments",
   {
     id: cuid2("id").defaultRandom().primaryKey(),
-    userId: cuid2("user_id")
+    userId: text("user_id")
       .notNull()
       .references(() => users.id),
     content: text("content").notNull(),

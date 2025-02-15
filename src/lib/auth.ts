@@ -1,3 +1,4 @@
+import { env } from "@/env";
 import { db } from "@/server/db";
 import { accounts, sessions, users, verifications } from "@/server/db/schema";
 import { betterAuth } from "better-auth";
@@ -21,10 +22,16 @@ export const auth = betterAuth({
     },
   },
   baseURL:
-    process.env.NODE_ENV === "development"
-      ? process.env.BETTER_AUTH_URL_DEVELOPMENT
-      : process.env.BETTER_AUTH_URL_PRODUCTION,
-  secret: process.env.BETTER_AUTH_SECRET,
+    env.NODE_ENV === "development"
+      ? env.NEXT_PUBLIC_BETTER_AUTH_URL_DEVELOPMENT
+      : env.NEXT_PUBLIC_BETTER_AUTH_URL_PRODUCTION,
+  secret: env.BETTER_AUTH_SECRET,
+  socialProviders: {
+    google: {
+      clientId: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string,
+      clientSecret: env.GOOGLE_CLIENT_SECRET as string,
+    },
+  },
 });
 
 export type Auth = typeof auth;

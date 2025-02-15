@@ -107,7 +107,6 @@ export const projectRouter = createTRPCRouter({
       const timestamp = Date.now().toString();
       const imageId =
         "projects/" + input.imageUrl.split("/").pop()!.split(".")[0]!;
-      console.log(imageId);
 
       const signatureString = `public_id=${imageId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
       const signature = createHash("sha1")

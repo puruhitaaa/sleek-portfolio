@@ -1,12 +1,12 @@
-import * as React from "react"
-import type { Editor } from "@tiptap/react"
-import type { Content, UseEditorOptions } from "@tiptap/react"
-import { StarterKit } from "@tiptap/starter-kit"
-import { useEditor } from "@tiptap/react"
-import { Typography } from "@tiptap/extension-typography"
-import { Placeholder } from "@tiptap/extension-placeholder"
-import { Underline } from "@tiptap/extension-underline"
-import { TextStyle } from "@tiptap/extension-text-style"
+import * as React from "react";
+import type { Editor } from "@tiptap/react";
+import type { Content, UseEditorOptions } from "@tiptap/react";
+import { StarterKit } from "@tiptap/starter-kit";
+import { useEditor } from "@tiptap/react";
+import { Typography } from "@tiptap/extension-typography";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Underline } from "@tiptap/extension-underline";
+import { TextStyle } from "@tiptap/extension-text-style";
 import {
   Link,
   Image,
@@ -17,21 +17,21 @@ import {
   UnsetAllMarks,
   ResetMarksOnEnter,
   FileHandler,
-} from "../extensions"
-import { cn } from "@/lib/utils"
-import { fileToBase64, getOutput, randomId } from "../utils"
-import { useThrottle } from "../hooks/use-throttle"
-import { toast } from "sonner"
-import { client } from "@/lib/client"
+} from "../extensions";
+import { cn } from "@/lib/utils";
+import { fileToBase64, getOutput, randomId } from "../utils";
+import { useThrottle } from "../hooks/use-throttle";
+import { toast } from "sonner";
+import { api } from "@/trpc/react";
 
 export interface UseMinimalTiptapEditorProps extends UseEditorOptions {
-  value?: Content
-  output?: "html" | "json" | "text"
-  placeholder?: string
-  editorClassName?: string
-  throttleDelay?: number
-  onUpdate?: (content: Content) => void
-  onBlur?: (content: Content) => void
+  value?: Content;
+  output?: "html" | "json" | "text";
+  placeholder?: string;
+  editorClassName?: string;
+  throttleDelay?: number;
+  onUpdate?: (content: Content) => void;
+  onBlur?: (content: Content) => void;
 }
 
 const createExtensions = (placeholder: string) => [
@@ -55,35 +55,35 @@ const createExtensions = (placeholder: string) => [
     uploadFn: async (file) => {
       try {
         // Convert file to base64
-        const base64Image = await fileToBase64(file)
+        const base64Image = await fileToBase64(file);
+
+        const uploadImageMutation = api.cloudinary.uploadImage.useMutation();
 
         // Upload to Cloudinary using our API route
-        const response = await client.cloudinary.uploadImage.$post({
+        const res = await uploadImageMutation.mutateAsync({
           image: base64Image,
           folder: "posts",
-        })
+        });
 
-        if (!response.ok) {
-          throw new Error("Failed to upload image")
+        if (!res) {
+          throw new Error("Failed to upload image");
         }
-
-        const data = await response.json()
 
         // Return the Cloudinary URL and generate a random ID
         return {
           id: randomId(),
-          src: data.secure_url,
-        }
+          src: res.secure_url,
+        };
       } catch (error) {
-        console.error("Error uploading image:", error)
-        throw new Error("Failed to upload image")
+        console.error("Error uploading image:", error);
+        throw new Error("Failed to upload image");
       }
     },
     onToggle(editor, files, pos) {
       editor.commands.insertContentAt(
         pos,
         files.map((image) => {
-          const id = randomId()
+          const id = randomId();
           return {
             type: "image",
             attrs: {
@@ -93,52 +93,54 @@ const createExtensions = (placeholder: string) => [
               title: image.name,
               fileName: image.name,
             },
-          }
-        })
-      )
+          };
+        }),
+      );
     },
     onImageRemoved: async ({ id, src }) => {
-      const imageId = "posts/" + src.split("/").pop()?.split(".")[0]!
-      const res = await client.cloudinary.deleteImage.$post({
-        publicId: imageId,
-      })
+      const imageId = "posts/" + src.split("/").pop()?.split(".")[0]!;
+      const deleteImageMutation = api.cloudinary.deleteImage.useMutation();
 
-      if (!res.ok) {
-        toast.error("Failed to delete image")
-        return
+      const res = await deleteImageMutation.mutateAsync({
+        publicId: imageId,
+      });
+
+      if (!res.success) {
+        toast.error("Failed to delete image");
+        return;
       }
 
-      console.log("Image removed", { id, src })
+      console.log("Image removed", { id, src });
     },
     onValidationError(errors) {
       errors.forEach((error) => {
         toast.error("Image validation error", {
           position: "bottom-right",
           description: error.reason,
-        })
-      })
+        });
+      });
     },
     onActionSuccess({ action }) {
       const mapping = {
         copyImage: "Copy Image",
         copyLink: "Copy Link",
         download: "Download",
-      }
+      };
       toast.success(mapping[action], {
         position: "bottom-right",
         description: "Image action success",
-      })
+      });
     },
     onActionError(error, { action }) {
       const mapping = {
         copyImage: "Copy Image",
         copyLink: "Copy Link",
         download: "Download",
-      }
+      };
       toast.error(`Failed to ${mapping[action]}`, {
         position: "bottom-right",
         description: error.message,
-      })
+      });
     },
   }),
   FileHandler.configure({
@@ -147,29 +149,29 @@ const createExtensions = (placeholder: string) => [
     maxFileSize: 5 * 1024 * 1024,
     onDrop: (editor, files, pos) => {
       files.forEach(async (file) => {
-        const src = await fileToBase64(file)
+        const src = await fileToBase64(file);
         editor.commands.insertContentAt(pos, {
           type: "image",
           attrs: { src },
-        })
-      })
+        });
+      });
     },
     onPaste: (editor, files) => {
       files.forEach(async (file) => {
-        const src = await fileToBase64(file)
+        const src = await fileToBase64(file);
         editor.commands.insertContent({
           type: "image",
           attrs: { src },
-        })
-      })
+        });
+      });
     },
     onValidationError: (errors) => {
       errors.forEach((error) => {
         toast.error("Image validation error", {
           position: "bottom-right",
           description: error.reason,
-        })
-      })
+        });
+      });
     },
   }),
   Color,
@@ -181,7 +183,7 @@ const createExtensions = (placeholder: string) => [
   ResetMarksOnEnter,
   CodeBlockLowlight,
   Placeholder.configure({ placeholder: () => placeholder }),
-]
+];
 
 export const useMinimalTiptapEditor = ({
   value,
@@ -195,27 +197,27 @@ export const useMinimalTiptapEditor = ({
 }: UseMinimalTiptapEditorProps) => {
   const throttledSetValue = useThrottle(
     (value: Content) => onUpdate?.(value),
-    throttleDelay
-  )
+    throttleDelay,
+  );
 
   const handleUpdate = React.useCallback(
     (editor: Editor) => throttledSetValue(getOutput(editor, output)),
-    [output, throttledSetValue]
-  )
+    [output, throttledSetValue],
+  );
 
   const handleCreate = React.useCallback(
     (editor: Editor) => {
       if (value && editor.isEmpty) {
-        editor.commands.setContent(value)
+        editor.commands.setContent(value);
       }
     },
-    [value]
-  )
+    [value],
+  );
 
   const handleBlur = React.useCallback(
     (editor: Editor) => onBlur?.(getOutput(editor, output)),
-    [output, onBlur]
-  )
+    [output, onBlur],
+  );
 
   const editor = useEditor({
     extensions: createExtensions(placeholder),
@@ -231,9 +233,9 @@ export const useMinimalTiptapEditor = ({
     onCreate: ({ editor }) => handleCreate(editor),
     onBlur: ({ editor }) => handleBlur(editor),
     ...props,
-  })
+  });
 
-  return editor
-}
+  return editor;
+};
 
-export default useMinimalTiptapEditor
+export default useMinimalTiptapEditor;

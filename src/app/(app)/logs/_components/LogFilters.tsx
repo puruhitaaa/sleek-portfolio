@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import {
   Select,
@@ -6,8 +6,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { useQueryState } from "nuqs"
+} from "@/components/ui/select";
+import { useQueryState } from "nuqs";
 
 const categories = [
   "all",
@@ -22,26 +22,26 @@ const categories = [
   "documentation",
   "analytics",
   "other",
-] as const
+] as const;
 
 const sortOptions = [
   { value: "newest", label: "Newest" },
   { value: "oldest", label: "Oldest" },
-]
+];
 
 export default function LogFilters() {
   const [category, setCategory] = useQueryState("category", {
     defaultValue: "all",
-  })
+  });
   const [sort, setSort] = useQueryState("sort", {
     defaultValue: "newest",
-  })
+  });
 
   return (
-    <div className='flex gap-4'>
+    <div className="flex gap-4">
       <Select value={category} onValueChange={setCategory}>
-        <SelectTrigger className='w-[180px]'>
-          <SelectValue placeholder='Select category' />
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Select category" />
         </SelectTrigger>
         <SelectContent>
           {categories.map((cat) => (
@@ -53,8 +53,8 @@ export default function LogFilters() {
       </Select>
 
       <Select value={sort} onValueChange={setSort}>
-        <SelectTrigger className='w-[180px]'>
-          <SelectValue placeholder='Sort by' />
+        <SelectTrigger className="w-[180px]">
+          <SelectValue placeholder="Sort by" />
         </SelectTrigger>
         <SelectContent>
           {sortOptions.map((option) => (
@@ -65,5 +65,5 @@ export default function LogFilters() {
         </SelectContent>
       </Select>
     </div>
-  )
+  );
 }

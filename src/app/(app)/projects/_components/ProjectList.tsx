@@ -1,55 +1,47 @@
-"use client"
+"use client";
 
-import { ProjectItem } from "./ProjectItem"
-import { client } from "@/lib/client"
-import { useInfiniteQuery } from "@tanstack/react-query"
-import { useEffect } from "react"
-import { useInView } from "react-intersection-observer"
-import { useQueryState } from "nuqs"
-import { LoadSkeleton } from "./LoadSkeleton"
+import { ProjectItem } from "./ProjectItem";
+import { useEffect } from "react";
+import { useInView } from "react-intersection-observer";
+import { useQueryState } from "nuqs";
+import { LoadSkeleton } from "./LoadSkeleton";
+import { api } from "@/trpc/react";
 
 export default function ProjectList() {
-  const { ref, inView } = useInView()
-  const [sort] = useQueryState("sort")
+  const { ref, inView } = useInView();
+  const [sort] = useQueryState("sort");
 
-  const { data, fetchNextPage, isPending, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["projects", sort],
-      queryFn: async ({
-        pageParam = undefined,
-      }: {
-        pageParam: number | undefined
-      }) => {
-        const res = await client.projects.list.$get({
-          cursor: pageParam,
-          limit: 10,
-          sort:
-            (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-        })
-        return res.json()
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
+    api.project.list.useInfiniteQuery(
+      {
+        limit: 10,
+        sort:
+          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
       },
-      initialPageParam: undefined,
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    })
+      {
+        initialCursor: undefined,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    );
 
   useEffect(() => {
     if (inView && hasNextPage) {
-      fetchNextPage()
+      fetchNextPage();
     }
-  }, [inView, fetchNextPage, hasNextPage])
+  }, [inView, fetchNextPage, hasNextPage]);
 
-  const projects = data?.pages.flatMap((page) => page.items)
+  const projects = data?.pages.flatMap((page) => page.items);
 
   return (
     <>
-      <div className='space-y-4'>
+      <div className="space-y-4">
         {!isPending ? (
           projects?.length ? (
             projects.map((project) => (
               <ProjectItem key={project.id} {...project} />
             ))
           ) : (
-            <p className='text-center dark:text-zinc-400 text-zinc-600'>
+            <p className="text-center text-zinc-600 dark:text-zinc-400">
               No projects yet
             </p>
           )
@@ -58,11 +50,11 @@ export default function ProjectList() {
         )}
       </div>
 
-      <div ref={ref} className='h-10'>
+      <div ref={ref} className="h-10">
         {isFetchingNextPage && (
-          <p className='text-center dark:text-zinc-400'>Loading more...</p>
+          <p className="text-center dark:text-zinc-400">Loading more...</p>
         )}
       </div>
     </>
-  )
+  );
 }

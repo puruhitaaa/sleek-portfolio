@@ -70,7 +70,6 @@ export const logsRouter = createTRPCRouter({
 
       return { items, nextCursor };
     }),
-
   create: adminProcedure.input(logSchema).mutation(async ({ ctx, input }) => {
     const { db } = ctx;
     const [log] = await db
@@ -86,7 +85,6 @@ export const logsRouter = createTRPCRouter({
 
     return log;
   }),
-
   update: adminProcedure
     .input(updateLogSchema)
     .mutation(async ({ ctx, input }) => {
@@ -110,7 +108,6 @@ export const logsRouter = createTRPCRouter({
 
       return updatedLog;
     }),
-
   delete: adminProcedure
     .input(deleteLogSchema)
     .mutation(async ({ ctx, input }) => {

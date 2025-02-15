@@ -53,8 +53,6 @@ export const guestbookRouter = createTRPCRouter({
     .input(z.object({ content: z.string().min(1) }))
     .mutation(async ({ ctx, input }) => {
       const { session } = ctx;
-      const userId = session?.session.userId.toString();
-
       // const { success } = await ratelimit.limit(userId!);
 
       // if (!success) {
@@ -94,7 +92,7 @@ export const guestbookRouter = createTRPCRouter({
         .insert(comments)
         .values({
           content,
-          userId: userId!,
+          userId: session?.user.id!,
         })
         .returning();
 
@@ -160,7 +158,7 @@ export const guestbookRouter = createTRPCRouter({
         });
       }
 
-      if (comment.userId !== session?.session.userId.toString()) {
+      if (comment.userId !== session?.user.id) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Unauthorized",
@@ -207,7 +205,7 @@ export const guestbookRouter = createTRPCRouter({
         });
       }
 
-      if (comment.userId !== session?.session.userId.toString()) {
+      if (comment.userId !== session?.user.id) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Unauthorized",

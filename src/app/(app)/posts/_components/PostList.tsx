@@ -1,53 +1,45 @@
-"use client"
+"use client";
 
-import { PostItem } from "./PostItem"
-import { client } from "@/lib/client"
-import { useInfiniteQuery } from "@tanstack/react-query"
-import { useEffect } from "react"
-import { useInView } from "react-intersection-observer"
-import { useQueryState } from "nuqs"
-import { LoadSkeleton } from "./LoadSkeleton"
+import { PostItem } from "./PostItem";
+import { useEffect } from "react";
+import { useInView } from "react-intersection-observer";
+import { useQueryState } from "nuqs";
+import { LoadSkeleton } from "./LoadSkeleton";
+import { api } from "@/trpc/react";
 
 export default function PostList() {
-  const { ref, inView } = useInView()
-  const [sort] = useQueryState("sort")
+  const { ref, inView } = useInView();
+  const [sort] = useQueryState("sort");
 
-  const { data, fetchNextPage, isPending, hasNextPage, isFetchingNextPage } =
-    useInfiniteQuery({
-      queryKey: ["posts", sort],
-      queryFn: async ({
-        pageParam = undefined,
-      }: {
-        pageParam: number | undefined
-      }) => {
-        const res = await client.posts.list.$get({
-          cursor: pageParam,
-          limit: 10,
-          sort:
-            (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-        })
-        return res.json()
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
+    api.post.list.useInfiniteQuery(
+      {
+        limit: 10,
+        sort:
+          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
       },
-      initialPageParam: undefined,
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-    })
+      {
+        initialCursor: undefined,
+        getNextPageParam: (lastPage) => lastPage.nextCursor,
+      },
+    );
 
   useEffect(() => {
     if (inView && hasNextPage) {
-      fetchNextPage()
+      fetchNextPage();
     }
-  }, [inView, fetchNextPage, hasNextPage])
+  }, [inView, fetchNextPage, hasNextPage]);
 
-  const posts = data?.pages.flatMap((page) => page.items)
+  const posts = data?.pages.flatMap((page) => page.items);
 
   return (
     <>
-      <div className='space-y-4'>
+      <div className="space-y-4">
         {!isPending ? (
           posts?.length ? (
             posts.map((post) => <PostItem key={post.id} {...post} />)
           ) : (
-            <p className='text-center dark:text-zinc-400 text-zinc-600'>
+            <p className="text-center text-zinc-600 dark:text-zinc-400">
               No posts yet
             </p>
           )
@@ -56,11 +48,11 @@ export default function PostList() {
         )}
       </div>
 
-      <div ref={ref} className='h-10'>
+      <div ref={ref} className="h-10">
         {isFetchingNextPage && (
-          <p className='text-center dark:text-zinc-400'>Loading more...</p>
+          <p className="text-center dark:text-zinc-400">Loading more...</p>
         )}
       </div>
     </>
-  )
+  );
 }
