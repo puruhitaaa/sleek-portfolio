@@ -18,7 +18,7 @@ function Header() {
   const { data: authData } = useSession();
 
   const handleLogin = async () => {
-    await signIn.social({ provider: "google" });
+    await signIn.social({ provider: "google", callbackURL: pathname });
   };
 
   const handleLogout = async () => {
