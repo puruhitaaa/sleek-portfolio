@@ -69,6 +69,16 @@ function Header() {
                 )}
               </li>
             ))}
+            <li className="relative px-4 py-2 duration-300 ease-in">
+              <Link
+                className="relative z-10 whitespace-nowrap text-zinc-400 hover:text-zinc-100"
+                href={`${process.env.NEXT_PUBLIC_RESUME_URL}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Resume
+              </Link>
+            </li>
           </ul>
           <div className="ml-4 flex items-center gap-2">
             <ModeToggle />
