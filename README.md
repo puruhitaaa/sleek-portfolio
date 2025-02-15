@@ -1,29 +1,137 @@
-# Create T3 App
+# Sleek Portfolio Banner
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+![Sleek Portfolio](https://res.cloudinary.com/dzxwzv1r5/image/upload/v1739641481/hlkwglqh13ch9qayckt3.png)
 
-## What's next? How do I make an app with this?
+# Sleek Portfolio
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+A sleek, full-stack portfolio application built with Next.js, Drizzle ORM, tRPC, and other cutting-edge technologies.
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Prerequisites
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+- Node.js 18+ (recommended: latest LTS version)
+- PostgreSQL database
+- Cloudinary account (for image uploads)
+- Google OAuth credentials (for authentication)
+- Last.fm API key (for music integration)
+- Upstash Redis account (for rate limiting)
 
-## Learn More
+## Getting Started
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+1. Clone the repository:
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+```bash
+git clone <repository-url>
+cd sleek-portfolio
+```
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+2. Install dependencies:
 
-## How do I deploy this?
+```bash
+npm install
+```
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+3. Set up environment variables:
+
+   - Copy the `.env.example` file to create a new `.env` file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   - Fill in the following environment variables in your `.env` file:
+
+   ```plaintext
+   # Database
+   DATABASE_URL=postgresql://your-connection-string
+
+   # Better Auth
+   BETTER_AUTH_URL_DEVELOPMENT=http://localhost:3000
+   BETTER_AUTH_URL_PRODUCTION=your-production-url
+   BETTER_AUTH_SECRET=your-secret-key
+
+   # Frontend API URL
+   NEXT_PUBLIC_FRONTEND_API_URL_DEVELOPMENT=http://localhost:3000
+   NEXT_PUBLIC_FRONTEND_API_URL_PRODUCTION=your-production-url
+
+   # Last.fm (Optional - for music integration)
+   LASTFM_API_KEY=your-lastfm-api-key
+   LASTFM_USERNAME=your-lastfm-username
+
+   # Google OAuth
+   GOOGLE_CLIENT_ID=your-google-client-id
+   GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+   # Cloudinary (for image uploads)
+   NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your-cloud-name
+   NEXT_PUBLIC_CLOUDINARY_API_KEY=your-api-key
+   CLOUDINARY_API_SECRET=your-api-secret
+   CLOUDINARY_URL=your-cloudinary-url
+
+   # Upstash Redis (for rate limiting)
+   UPSTASH_REDIS_REST_URL=your-redis-url
+   UPSTASH_REDIS_REST_TOKEN=your-redis-token
+   ```
+
+4. Set up the database:
+
+```bash
+# Generate the database schema
+npm run db:generate
+
+# Push the schema to your database
+npm run db:push
+```
+
+5. Start the development server:
+
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:3000`.
+
+## Available Scripts
+
+- `npm run dev` - Start the development server with Turbopack
+- `npm run build` - Build the application for production
+- `npm run start` - Start the production server
+- `npm run preview` - Build and preview the production build locally
+- `npm run lint` - Run ESLint
+- `npm run lint:fix` - Run ESLint and fix issues
+- `npm run format:check` - Check code formatting
+- `npm run format:write` - Format code
+- `npm run typecheck` - Check TypeScript types
+- `npm run db:generate` - Generate database schema
+- `npm run db:push` - Push schema to database
+- `npm run db:studio` - Open Drizzle Studio for database management
+
+## Tech Stack
+
+- [Next.js](https://nextjs.org) - React framework
+- [Drizzle ORM](https://orm.drizzle.team) - Database ORM
+- [tRPC](https://trpc.io) - End-to-end typesafe APIs
+- [Better Auth](https://better-auth.js.org) - Authentication
+- [Tailwind CSS](https://tailwindcss.com) - Styling
+- [React Query](https://tanstack.com/query) - Data fetching
+- [Radix UI](https://www.radix-ui.com) - UI components
+- [Tiptap](https://tiptap.dev) - Rich text editor
+
+## Development Tools
+
+- TypeScript
+- ESLint
+- Prettier
+- Drizzle Kit
+- Turbopack
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is licensed under the MIT License.
