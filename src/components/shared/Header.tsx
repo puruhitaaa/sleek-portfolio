@@ -83,7 +83,12 @@ function Header() {
           <div className="ml-4 flex items-center gap-2">
             <ModeToggle />
             {authData?.session ? (
-              <Button variant="destructive" size="icon" onClick={handleLogout}>
+              <Button
+                className="text-zinc-50"
+                variant="destructive"
+                size="icon"
+                onClick={handleLogout}
+              >
                 <LogOut />
               </Button>
             ) : (
