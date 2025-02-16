@@ -9,9 +9,18 @@ import { ModeToggle } from "./ModeToggle";
 import { Button } from "../ui/button";
 import { LogIn, LogOut } from "lucide-react";
 import { signIn, signOut, useSession } from "@/lib/auth-client";
+import { useEffect, useRef } from "react";
 
 function Header() {
   const pathname = usePathname();
+  const activeNavRef = useRef<HTMLAnchorElement>(null);
+
+  // Add useEffect to focus the active link on mount
+  useEffect(() => {
+    if (activeNavRef.current) {
+      activeNavRef.current.focus();
+    }
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
@@ -55,6 +64,7 @@ function Header() {
                 key={item.href}
               >
                 <Link
+                  ref={isActive(item.href) ? activeNavRef : null}
                   href={item.href}
                   className={cn(
                     "relative z-10 whitespace-nowrap text-zinc-400 hover:text-zinc-100",
