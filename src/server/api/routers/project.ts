@@ -30,6 +30,36 @@ const deleteProjectSchema = updateProjectSchema.pick({
 });
 
 export const projectRouter = createTRPCRouter({
+  togglePin: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { db } = ctx;
+      const { id } = input;
+
+      const project = await db
+        .select({ isPinned: projects.isPinned })
+        .from(projects)
+        .where(eq(projects.id, id))
+        .then((res) => res[0]);
+
+      if (!project) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      const [updatedProject] = await db
+        .update(projects)
+        .set({
+          isPinned: !project.isPinned,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, id))
+        .returning();
+
+      return updatedProject;
+    }),
   list: publicProcedure
     .input(
       z.object({
@@ -51,10 +81,10 @@ export const projectRouter = createTRPCRouter({
       const sortOrder = (() => {
         switch (sort) {
           case "oldest":
-            return [asc(projects.createdAt)];
+            return [desc(projects.isPinned), asc(projects.createdAt)];
           case "newest":
           default:
-            return [desc(projects.createdAt)];
+            return [desc(projects.isPinned), desc(projects.createdAt)];
         }
       })();
 

@@ -16,6 +16,36 @@ const updatePostSchema = postSchema.extend({
 const deletePostSchema = updatePostSchema.pick({ id: true });
 
 export const postRouter = createTRPCRouter({
+  togglePin: adminProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const { db } = ctx;
+      const { id } = input;
+
+      const post = await db
+        .select({ isPinned: posts.isPinned })
+        .from(posts)
+        .where(eq(posts.id, id))
+        .then((res) => res[0]);
+
+      if (!post) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Post not found",
+        });
+      }
+
+      const [updatedPost] = await db
+        .update(posts)
+        .set({
+          isPinned: !post.isPinned,
+          updatedAt: new Date(),
+        })
+        .where(eq(posts.id, id))
+        .returning();
+
+      return updatedPost;
+    }),
   list: publicProcedure
     .input(
       z.object({
@@ -37,10 +67,10 @@ export const postRouter = createTRPCRouter({
       const sortOrder = (() => {
         switch (sort) {
           case "oldest":
-            return [asc(posts.createdAt)];
+            return [desc(posts.isPinned), asc(posts.createdAt)];
           case "newest":
           default:
-            return [desc(posts.createdAt)];
+            return [desc(posts.isPinned), desc(posts.createdAt)];
         }
       })();
 
