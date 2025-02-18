@@ -3,6 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Baiq",
+    "email": "hughdev101@gmail.com",
+    "url": "https://www.hawkhugh.cloud"
+  },
   "scripts": {
     "build": "next build",
     "check": "next lint && tsc --noEmit",
