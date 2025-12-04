@@ -24,7 +24,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={cn("antialiased", fontSans.className)}>
+      <body
+        className={cn("antialiased", fontSans.className)}
+        suppressHydrationWarning
+      >
         <Providers>{children}</Providers>
         <Toaster richColors />
       </body>
