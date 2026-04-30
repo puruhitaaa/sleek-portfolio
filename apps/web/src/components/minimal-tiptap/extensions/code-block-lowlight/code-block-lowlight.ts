@@ -10,7 +10,7 @@ export const CodeBlockLowlight = TiptapCodeBlockLowlight.extend({
       HTMLAttributes: {
         class: 'block-node'
       }
-    }
+    } as any
   }
 })
 

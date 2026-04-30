@@ -11,7 +11,6 @@ import {
   Link,
   Image,
   HorizontalRule,
-  CodeBlockLowlight,
   Selection,
   Color,
   UnsetAllMarks,
@@ -22,7 +21,7 @@ import { cn } from "@/lib/utils";
 import { fileToBase64, getOutput, randomId } from "../utils";
 import { useThrottle } from "../hooks/use-throttle";
 import { toast } from "sonner";
-import { api } from "@/trpc/react";
+import { api } from "@/orpc/react";
 
 export interface UseMinimalTiptapEditorProps extends UseEditorOptions {
   value?: Content;
@@ -34,10 +33,20 @@ export interface UseMinimalTiptapEditorProps extends UseEditorOptions {
   onBlur?: (content: Content) => void;
 }
 
-const createExtensions = (placeholder: string) => [
+const createExtensions = (
+  placeholder: string,
+  uploadImageMutation: {
+    mutateAsync: (input: { image: string; folder: string }) => Promise<{
+      secure_url: string;
+      public_id: string;
+    }>;
+  },
+  deleteImageMutation: {
+    mutateAsync: (input: { publicId: string }) => Promise<{ success: boolean }>;
+  },
+) => [
   StarterKit.configure({
     horizontalRule: false,
-    codeBlock: false,
     paragraph: { HTMLAttributes: { class: "text-node" } },
     heading: { HTMLAttributes: { class: "heading-node" } },
     blockquote: { HTMLAttributes: { class: "block-node" } },
@@ -56,8 +65,6 @@ const createExtensions = (placeholder: string) => [
       try {
         // Convert file to base64
         const base64Image = await fileToBase64(file);
-
-        const uploadImageMutation = api.cloudinary.uploadImage.useMutation();
 
         // Upload to Cloudinary using our API route
         const res = await uploadImageMutation.mutateAsync({
@@ -99,7 +106,6 @@ const createExtensions = (placeholder: string) => [
     },
     onImageRemoved: async ({ id, src }) => {
       const imageId = "posts/" + src.split("/").pop()?.split(".")[0]!;
-      const deleteImageMutation = api.cloudinary.deleteImage.useMutation();
 
       const res = await deleteImageMutation.mutateAsync({
         publicId: imageId,
@@ -181,7 +187,6 @@ const createExtensions = (placeholder: string) => [
   UnsetAllMarks,
   HorizontalRule,
   ResetMarksOnEnter,
-  CodeBlockLowlight,
   Placeholder.configure({ placeholder: () => placeholder }),
 ];
 
@@ -218,9 +223,15 @@ export const useMinimalTiptapEditor = ({
     (editor: Editor) => onBlur?.(getOutput(editor, output)),
     [output, onBlur],
   );
+  const uploadImageMutation = api.cloudinary.uploadImage.useMutation();
+  const deleteImageMutation = api.cloudinary.deleteImage.useMutation();
 
   const editor = useEditor({
-    extensions: createExtensions(placeholder),
+    extensions: createExtensions(
+      placeholder,
+      uploadImageMutation,
+      deleteImageMutation,
+    ),
     editorProps: {
       attributes: {
         autocomplete: "off",

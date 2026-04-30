@@ -185,7 +185,7 @@ export const Image = TiptapImage.extend<CustomImageOptions>({
       downloadImage: undefined,
       copyImage: undefined,
       copyLink: undefined,
-    }
+    } as CustomImageOptions
   },
 
   addAttributes() {

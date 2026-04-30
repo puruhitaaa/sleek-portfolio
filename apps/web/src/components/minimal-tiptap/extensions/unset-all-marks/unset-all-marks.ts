@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/react'
+import { Extension } from '@tiptap/core'
 
 export const UnsetAllMarks = Extension.create({
   addKeyboardShortcuts() {
