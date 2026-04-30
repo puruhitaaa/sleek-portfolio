@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
-import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
 import { z } from "zod";
-import { logs } from "@/server/db/schema";
-import { TRPCError } from "@trpc/server";
+import { ORPCError } from "@orpc/server";
+
+import { and, asc, desc, eq, lt, logs } from "@baiqueee/db";
+
+import { adminProcedure, publicProcedure } from "../orpc";
 
 const logSchema = z.object({
   title: z.string().min(1),
@@ -16,7 +17,7 @@ const updateLogSchema = logSchema.extend({
 
 const deleteLogSchema = updateLogSchema.pick({ id: true });
 
-export const logsRouter = createTRPCRouter({
+export const logsRouter = {
   list: publicProcedure
     .input(
       z.object({
@@ -27,8 +28,8 @@ export const logsRouter = createTRPCRouter({
         sort: z.enum(["newest", "oldest"]).default("newest").optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { limit, cursor, category, published, sort } = input;
 
       const filters = [];
@@ -70,8 +71,8 @@ export const logsRouter = createTRPCRouter({
 
       return { items, nextCursor };
     }),
-  create: adminProcedure.input(logSchema).mutation(async ({ ctx, input }) => {
-    const { db } = ctx;
+  create: adminProcedure.input(logSchema).handler(async ({ context, input }) => {
+    const { db } = context;
     const [log] = await db
       .insert(logs)
 
@@ -87,14 +88,18 @@ export const logsRouter = createTRPCRouter({
   }),
   update: adminProcedure
     .input(updateLogSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id, ...updateData } = input;
 
-      const existingLog = await db.select().from(logs).where(eq(logs.id, id));
+      const existingLog = await db
+        .select()
+        .from(logs)
+        .where(eq(logs.id, id))
+        .then((rows) => rows[0]);
 
       if (!existingLog) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Log not found" });
+        throw new ORPCError("NOT_FOUND", { message: "Log not found" });
       }
 
       const [updatedLog] = await db
@@ -110,12 +115,12 @@ export const logsRouter = createTRPCRouter({
     }),
   delete: adminProcedure
     .input(deleteLogSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       await db.delete(logs).where(eq(logs.id, id));
 
       return { success: true };
     }),
-});
+} as const;

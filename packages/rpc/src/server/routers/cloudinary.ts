@@ -1,8 +1,11 @@
 import { createHash } from "crypto";
-import { createTRPCRouter, adminProcedure } from "../trpc";
+
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { env } from "@/env";
+
+import { apiEnv } from "@baiqueee/env/api";
+
+import { adminProcedure } from "../orpc";
 
 interface CloudinaryDeleteResponse {
   result: string;
@@ -13,10 +16,10 @@ interface CloudinaryUploadResponse {
   public_id: string;
 }
 
-export const cloudinaryRouter = createTRPCRouter({
+export const cloudinaryRouter = {
   uploadImage: adminProcedure
     .input(z.object({ image: z.string(), folder: z.string() }))
-    .mutation(async ({ input }) => {
+    .handler(async ({ input }) => {
       const timestamp = Date.now().toString();
 
       const params: Record<string, string> = {
@@ -28,7 +31,7 @@ export const cloudinaryRouter = createTRPCRouter({
         Object.keys(params)
           .sort()
           .map((key) => `${key}=${params[key]}`)
-          .join("&") + env.CLOUDINARY_API_SECRET;
+          .join("&") + apiEnv.CLOUDINARY_API_SECRET;
 
       const signature = createHash("sha1")
         .update(signatureString)
@@ -37,13 +40,13 @@ export const cloudinaryRouter = createTRPCRouter({
       const formData = new URLSearchParams();
       formData.append("file", input.image);
       formData.append("folder", input.folder);
-      formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
+      formData.append("api_key", apiEnv.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
       formData.append("signature", signature);
 
       try {
         const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
+          `https://api.cloudinary.com/v1_1/${apiEnv.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/upload`,
           {
             method: "POST",
             headers: {
@@ -56,8 +59,7 @@ export const cloudinaryRouter = createTRPCRouter({
         const data = (await response.json()) as CloudinaryUploadResponse;
 
         if (!response.ok) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: `Cloudinary upload failed: ${JSON.stringify(data)}`,
           });
         }
@@ -65,8 +67,7 @@ export const cloudinaryRouter = createTRPCRouter({
         return data;
       } catch (error) {
         console.error("Error uploading image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to upload image to Cloudinary",
         });
       }
@@ -74,10 +75,10 @@ export const cloudinaryRouter = createTRPCRouter({
 
   deleteImage: adminProcedure
     .input(z.object({ publicId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
+    .handler(async ({ input }) => {
       const timestamp = Date.now().toString();
 
-      const signatureString = `public_id=${input.publicId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
+      const signatureString = `public_id=${input.publicId}&timestamp=${timestamp}${apiEnv.CLOUDINARY_API_SECRET}`;
       const signature = createHash("sha1")
         .update(signatureString)
         .digest("hex");
@@ -85,12 +86,12 @@ export const cloudinaryRouter = createTRPCRouter({
       const formData = new URLSearchParams();
       formData.append("public_id", input.publicId);
       formData.append("signature", signature);
-      formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
+      formData.append("api_key", apiEnv.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
 
       try {
         const response = await fetch(
-          `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
+          `https://api.cloudinary.com/v1_1/${apiEnv.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
           {
             method: "POST",
             headers: {
@@ -103,15 +104,13 @@ export const cloudinaryRouter = createTRPCRouter({
         const data = (await response.json()) as CloudinaryDeleteResponse;
 
         if (!response.ok) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: `Cloudinary deletion failed: ${JSON.stringify(data)}`,
           });
         }
 
         if (data.result !== "ok") {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: "Image deletion was not successful",
           });
         }
@@ -119,10 +118,9 @@ export const cloudinaryRouter = createTRPCRouter({
         return { success: true };
       } catch (error) {
         console.error("Error deleting image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to delete image from Cloudinary",
         });
       }
     }),
-});
+} as const;

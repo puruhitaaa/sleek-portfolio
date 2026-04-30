@@ -1,8 +1,8 @@
-import { posts } from "@/server/db/schema";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { asc, desc, lt, and, eq } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+
+import { and, asc, desc, eq, lt, posts } from "@baiqueee/db";
+import { adminProcedure, publicProcedure } from "../orpc";
 
 const postSchema = z.object({
   title: z.string().min(1),
@@ -15,11 +15,11 @@ const updatePostSchema = postSchema.extend({
 
 const deletePostSchema = updatePostSchema.pick({ id: true });
 
-export const postRouter = createTRPCRouter({
+export const postRouter = {
   togglePin: adminProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       const post = await db
@@ -29,8 +29,7 @@ export const postRouter = createTRPCRouter({
         .then((res) => res[0]);
 
       if (!post) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
+        throw new ORPCError("NOT_FOUND", {
           message: "Post not found",
         });
       }
@@ -54,8 +53,8 @@ export const postRouter = createTRPCRouter({
         sort: z.enum(["newest", "oldest"]).default("newest").optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { limit, cursor, sort } = input;
 
       const filters = [];
@@ -89,8 +88,8 @@ export const postRouter = createTRPCRouter({
 
       return { items, nextCursor };
     }),
-  create: adminProcedure.input(postSchema).mutation(async ({ ctx, input }) => {
-    const { db } = ctx;
+  create: adminProcedure.input(postSchema).handler(async ({ context, input }) => {
+    const { db } = context;
     const [post] = await db
       .insert(posts)
       .values({
@@ -104,8 +103,8 @@ export const postRouter = createTRPCRouter({
   }),
   update: adminProcedure
     .input(updatePostSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id, ...updateData } = input;
 
       const [updatedPost] = await db
@@ -121,8 +120,8 @@ export const postRouter = createTRPCRouter({
     }),
   delete: adminProcedure
     .input(deletePostSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       await db.delete(posts).where(eq(posts.id, id));
@@ -131,8 +130,8 @@ export const postRouter = createTRPCRouter({
     }),
   detail: publicProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       const post = await db
@@ -143,12 +142,11 @@ export const postRouter = createTRPCRouter({
         .then((res) => res[0]);
 
       if (!post) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
+        throw new ORPCError("NOT_FOUND", {
           message: "Post not found",
         });
       }
 
       return post;
     }),
-});
+} as const;

@@ -1,13 +1,10 @@
-// Example model schema from the Drizzle docs
-// https://orm.drizzle.team/docs/sql-schema-declaration
-
 import {
+  boolean,
   index,
   pgEnum,
   pgTable,
-  timestamp,
   text,
-  boolean,
+  timestamp,
 } from "drizzle-orm/pg-core";
 import { cuid2 } from "drizzle-cuid2/postgres";
 

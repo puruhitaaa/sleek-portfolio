@@ -1,8 +1,10 @@
-import { env } from "@/env";
-import { db } from "@/server/db";
-import { accounts, sessions, users, verifications } from "@/server/db/schema";
+import "server-only";
+
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+
+import { db, accounts, sessions, users, verifications } from "@baiqueee/db";
+import { apiEnv } from "@baiqueee/env/api";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -21,15 +23,13 @@ export const auth = betterAuth({
       },
     },
   },
-  baseURL:
-    env.NODE_ENV === "development"
-      ? env.NEXT_PUBLIC_BETTER_AUTH_URL_DEVELOPMENT
-      : env.NEXT_PUBLIC_BETTER_AUTH_URL_PRODUCTION,
-  secret: env.BETTER_AUTH_SECRET,
+  baseURL: apiEnv.BETTER_AUTH_URL,
+  secret: apiEnv.BETTER_AUTH_SECRET,
+  trustedOrigins: [apiEnv.CORS_ORIGIN],
   socialProviders: {
     google: {
-      clientId: env.NEXT_PUBLIC_GOOGLE_CLIENT_ID as string,
-      clientSecret: env.GOOGLE_CLIENT_SECRET as string,
+      clientId: apiEnv.GOOGLE_CLIENT_ID,
+      clientSecret: apiEnv.GOOGLE_CLIENT_SECRET,
     },
   },
 });

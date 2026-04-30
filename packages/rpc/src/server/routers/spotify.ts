@@ -1,10 +1,11 @@
-import { createTRPCRouter, publicProcedure } from "../trpc";
-import { env } from "@/env";
+import { apiEnv } from "@baiqueee/env/api";
 
-export const spotifyRouter = createTRPCRouter({
-  nowPlaying: publicProcedure.query(async () => {
+import { publicProcedure } from "../orpc";
+
+export const spotifyRouter = {
+  nowPlaying: publicProcedure.handler(async () => {
     const resp = await fetch(
-      `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${env.NEXT_PUBLIC_LASTFM_USERNAME}&api_key=${env.NEXT_PUBLIC_LASTFM_API_KEY}&format=json&limit=2`,
+      `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${apiEnv.NEXT_PUBLIC_LASTFM_USERNAME}&api_key=${apiEnv.NEXT_PUBLIC_LASTFM_API_KEY}&format=json&limit=2`,
 
       {
         headers: {
@@ -36,4 +37,4 @@ export const spotifyRouter = createTRPCRouter({
 
     return data;
   }),
-});
+} as const;

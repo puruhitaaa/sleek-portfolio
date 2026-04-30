@@ -1,11 +1,11 @@
-import { comments, users } from "@/server/db/schema";
-import { createTRPCRouter, publicProcedure, privateProcedure } from "../trpc";
+import { ORPCError } from "@orpc/server";
 import { z } from "zod";
-import { lt, and, eq, desc } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { and, comments, desc, eq, lt, users } from "@baiqueee/db";
+
+import { privateProcedure, publicProcedure } from "../orpc";
 // import ratelimit from "@/lib/redis/ratelimit";
 
-export const guestbookRouter = createTRPCRouter({
+export const guestbookRouter = {
   list: publicProcedure
     .input(
       z.object({
@@ -13,8 +13,8 @@ export const guestbookRouter = createTRPCRouter({
         cursor: z.string().optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { limit, cursor } = input;
 
       const filters = [];
@@ -51,8 +51,8 @@ export const guestbookRouter = createTRPCRouter({
 
   create: privateProcedure
     .input(z.object({ content: z.string().min(1) }))
-    .mutation(async ({ ctx, input }) => {
-      const { session } = ctx;
+    .handler(async ({ context, input }) => {
+      const { session } = context;
       // const { success } = await ratelimit.limit(userId!);
 
       // if (!success) {
@@ -62,7 +62,7 @@ export const guestbookRouter = createTRPCRouter({
       //   });
       // }
 
-      const { db } = ctx;
+      const { db } = context;
       const { content } = input;
 
       const res: {
@@ -82,8 +82,7 @@ export const guestbookRouter = createTRPCRouter({
       };
 
       if (res.isProfanity) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
+        throw new ORPCError("BAD_REQUEST", {
           message: "Message contains profanity!",
         });
       }
@@ -106,8 +105,8 @@ export const guestbookRouter = createTRPCRouter({
         content: z.string().min(1),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      const { session } = ctx;
+    .handler(async ({ context, input }) => {
+      const { session } = context;
 
       // const { success } = await ratelimit.limit(session?.session.userId.toString()!)
 
@@ -118,7 +117,7 @@ export const guestbookRouter = createTRPCRouter({
       //   });
       // }
 
-      const { db } = ctx;
+      const { db } = context;
       const { id, content } = input;
 
       const res: {
@@ -138,8 +137,7 @@ export const guestbookRouter = createTRPCRouter({
       };
 
       if (res.isProfanity) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
+        throw new ORPCError("BAD_REQUEST", {
           message: "Message contains profanity!",
         });
       }
@@ -152,15 +150,13 @@ export const guestbookRouter = createTRPCRouter({
         .then((rows) => rows[0]);
 
       if (!comment) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
+        throw new ORPCError("NOT_FOUND", {
           message: "Comment not found",
         });
       }
 
       if (comment.userId !== session?.user.id) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
+        throw new ORPCError("UNAUTHORIZED", {
           message: "Unauthorized",
         });
       }
@@ -176,8 +172,8 @@ export const guestbookRouter = createTRPCRouter({
 
   delete: privateProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const { session } = ctx;
+    .handler(async ({ context, input }) => {
+      const { session } = context;
 
       // const { success } = await ratelimit.limit(session?.session.userId.toString()!)
 
@@ -188,7 +184,7 @@ export const guestbookRouter = createTRPCRouter({
       //   });
       // }
 
-      const { db } = ctx;
+      const { db } = context;
       const { id } = input;
 
       const comment = await db
@@ -199,15 +195,13 @@ export const guestbookRouter = createTRPCRouter({
         .then((rows) => rows[0]);
 
       if (!comment) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
+        throw new ORPCError("NOT_FOUND", {
           message: "Comment not found",
         });
       }
 
       if (comment.userId !== session?.user.id) {
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
+        throw new ORPCError("UNAUTHORIZED", {
           message: "Unauthorized",
         });
       }
@@ -216,4 +210,4 @@ export const guestbookRouter = createTRPCRouter({
 
       return { success: true };
     }),
-});
+} as const;

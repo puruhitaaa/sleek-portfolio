@@ -1,10 +1,10 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
 import { z } from "zod";
-import { projects } from "@/server/db/schema";
-import { env } from "@/env";
 import { createHash } from "crypto";
-import { TRPCError } from "@trpc/server";
+import { ORPCError } from "@orpc/server";
+
+import { and, asc, desc, eq, lt, projects } from "@baiqueee/db";
+import { apiEnv } from "@baiqueee/env/api";
+import { adminProcedure, publicProcedure } from "../orpc";
 
 interface CloudinaryDeleteResponse {
   result: string;
@@ -29,11 +29,11 @@ const deleteProjectSchema = updateProjectSchema.pick({
   imageUrl: true,
 });
 
-export const projectRouter = createTRPCRouter({
+export const projectRouter = {
   togglePin: adminProcedure
     .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       const project = await db
@@ -43,8 +43,7 @@ export const projectRouter = createTRPCRouter({
         .then((res) => res[0]);
 
       if (!project) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
+        throw new ORPCError("NOT_FOUND", {
           message: "Project not found",
         });
       }
@@ -68,8 +67,8 @@ export const projectRouter = createTRPCRouter({
         sort: z.enum(["newest", "oldest"]).default("newest").optional(),
       }),
     )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { limit, cursor, sort } = input;
 
       const filters = [];
@@ -105,16 +104,16 @@ export const projectRouter = createTRPCRouter({
     }),
   create: adminProcedure
     .input(projectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const [project] = await db.insert(projects).values(input).returning();
 
       return project;
     }),
   update: adminProcedure
     .input(updateProjectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id, ...updateData } = input;
 
       const [updatedProject] = await db
@@ -130,15 +129,15 @@ export const projectRouter = createTRPCRouter({
     }),
   delete: adminProcedure
     .input(deleteProjectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    .handler(async ({ context, input }) => {
+      const { db } = context;
       const { id } = input;
 
       const timestamp = Date.now().toString();
       const imageId =
         "projects/" + input.imageUrl.split("/").pop()!.split(".")[0]!;
 
-      const signatureString = `public_id=${imageId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
+      const signatureString = `public_id=${imageId}&timestamp=${timestamp}${apiEnv.CLOUDINARY_API_SECRET}`;
       const signature = createHash("sha1")
         .update(signatureString)
         .digest("hex");
@@ -146,7 +145,7 @@ export const projectRouter = createTRPCRouter({
       const formData = new URLSearchParams();
       formData.append("public_id", imageId);
       formData.append("signature", signature);
-      formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
+      formData.append("api_key", apiEnv.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
 
       try {
@@ -155,7 +154,7 @@ export const projectRouter = createTRPCRouter({
           .where(eq(projects.id, id))
           .returning();
         const deleteImage = fetch(
-          `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
+          `https://api.cloudinary.com/v1_1/${apiEnv.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
           {
             method: "POST",
             headers: {
@@ -173,15 +172,13 @@ export const projectRouter = createTRPCRouter({
         const delRes = (await data.json()) as CloudinaryDeleteResponse;
 
         if (delRes.result !== "ok") {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: `Cloudinary deletion failed: ${JSON.stringify(data)}`,
           });
         }
 
         if (!response) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          throw new ORPCError("INTERNAL_SERVER_ERROR", {
             message: "Failed to delete project",
           });
         }
@@ -189,10 +186,9 @@ export const projectRouter = createTRPCRouter({
         return { success: true };
       } catch (error: unknown) {
         console.error("Error deleting image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
           message: "Failed to delete image from Cloudinary",
         });
       }
     }),
-});
+} as const;
