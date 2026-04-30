@@ -1,0 +1,21 @@
+{
+  "name": "@baiqueee/db",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-cuid2": "2.0.0",
+    "drizzle-orm": "0.45.2",
+    "postgres": "3.4.7",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.7"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@baiqueee/rpc",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@baiqueee/auth": "workspace:*",
+    "@baiqueee/db": "workspace:*",
+    "@baiqueee/env": "workspace:*",
+    "@orpc/client": "1.14.0",
+    "@orpc/server": "1.14.0",
+    "@orpc/tanstack-query": "1.14.0",
+    "drizzle-orm": "0.45.2",
+    "server-only": "0.0.1",
+    "zod": "4.1.13"
+  }
+}

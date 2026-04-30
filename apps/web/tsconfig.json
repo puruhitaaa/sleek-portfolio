@@ -28,9 +28,34 @@
       }
     ],
     "incremental": true,
+    "ignoreDeprecations": "6.0",
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
+      "@baiqueee/auth": [
+        "../../packages/auth/src/index.ts"
+      ],
+      "@baiqueee/auth/*": [
+        "../../packages/auth/src/*"
+      ],
+      "@baiqueee/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@baiqueee/db/*": [
+        "../../packages/db/src/*"
+      ],
+      "@baiqueee/env": [
+        "../../packages/env/src/index.ts"
+      ],
+      "@baiqueee/env/*": [
+        "../../packages/env/src/*"
+      ],
+      "@baiqueee/rpc": [
+        "../../packages/rpc/src/index.ts"
+      ],
+      "@baiqueee/rpc/*": [
+        "../../packages/rpc/src/*"
+      ],
       "@/*": [
         "./src/*"
       ]

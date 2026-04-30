@@ -6,6 +6,12 @@ import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
 const config = {
+  transpilePackages: [
+    "@baiqueee/auth",
+    "@baiqueee/db",
+    "@baiqueee/env",
+    "@baiqueee/rpc",
+  ],
   images: {
     remotePatterns: [
       {

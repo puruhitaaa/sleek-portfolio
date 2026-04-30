@@ -1,13 +1,14 @@
+import defaultTheme from "tailwindcss/defaultTheme";
 import { type Config } from "tailwindcss";
-import { fontFamily } from "tailwindcss/defaultTheme";
+import animate from "tailwindcss-animate";
 
 export default {
-  darkMode: ["class"],
+  darkMode: ["class", ".dark"],
   content: ["./src/**/*.tsx"],
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-geist-sans)", ...fontFamily.sans],
+        sans: ["var(--font-geist-sans)", ...defaultTheme.fontFamily.sans],
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -58,6 +59,5 @@ export default {
       },
     },
   },
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  plugins: [require("tailwindcss-animate")],
+  plugins: [animate],
 } satisfies Config;
