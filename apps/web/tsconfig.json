@@ -1,0 +1,77 @@
+{
+  "compilerOptions": {
+    /* Base Options: */
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    /* Strictness */
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "checkJs": true,
+    /* Bundled projects */
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2022"
+    ],
+    "noEmit": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "incremental": true,
+    "ignoreDeprecations": "6.0",
+    /* Path Aliases */
+    "baseUrl": ".",
+    "paths": {
+      "@baiqueee/auth": [
+        "../../packages/auth/src/index.ts"
+      ],
+      "@baiqueee/auth/*": [
+        "../../packages/auth/src/*"
+      ],
+      "@baiqueee/db": [
+        "../../packages/db/src/index.ts"
+      ],
+      "@baiqueee/db/*": [
+        "../../packages/db/src/*"
+      ],
+      "@baiqueee/env": [
+        "../../packages/env/src/index.ts"
+      ],
+      "@baiqueee/env/*": [
+        "../../packages/env/src/*"
+      ],
+      "@baiqueee/rpc": [
+        "../../packages/rpc/src/index.ts"
+      ],
+      "@baiqueee/rpc/*": [
+        "../../packages/rpc/src/*"
+      ],
+      "@/*": [
+        "./src/*"
+      ]
+    }
+  },
+  "include": [
+    ".eslintrc.cjs",
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.cjs",
+    "**/*.js",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

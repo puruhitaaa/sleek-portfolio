@@ -1,0 +1,14 @@
+{
+  "name": "@baiqueee/auth",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@baiqueee/db": "workspace:*",
+    "@baiqueee/env": "workspace:*",
+    "better-auth": "1.6.9",
+    "server-only": "0.0.1"
+  }
+}

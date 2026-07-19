@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "lib": ["ES2022", "DOM"],
+    "paths": {
+      "@baiqueee/auth": ["packages/auth/src/index.ts"],
+      "@baiqueee/auth/*": ["packages/auth/src/*"],
+      "@baiqueee/db": ["packages/db/src/index.ts"],
+      "@baiqueee/db/*": ["packages/db/src/*"],
+      "@baiqueee/env": ["packages/env/src/index.ts"],
+      "@baiqueee/env/*": ["packages/env/src/*"],
+      "@baiqueee/rpc": ["packages/rpc/src/index.ts"],
+      "@baiqueee/rpc/*": ["packages/rpc/src/*"]
+    },
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "ignoreDeprecations": "6.0",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "resolveJsonModule": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

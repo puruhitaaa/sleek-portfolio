@@ -2,6 +2,7 @@
 
 # dependencies
 /node_modules
+**/node_modules/
 /.pnp
 .pnp.js
 
@@ -17,6 +18,11 @@ db.sqlite
 /.next/
 /out/
 next-env.d.ts
+**/next-env.d.ts
+.turbo/
+apps/**/.next/
+apps/**/dist/
+packages/**/dist/
 
 # production
 /build
