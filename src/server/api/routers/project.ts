@@ -5,6 +5,7 @@ import { projects } from "@/server/db/schema";
 import { env } from "@/env";
 import { createHash } from "crypto";
 import { TRPCError } from "@trpc/server";
+import { syncProjectWithOutbox } from "@/server/cv-site-sync";
 
 interface CloudinaryDeleteResponse {
   result: string;
@@ -58,6 +59,10 @@ export const projectRouter = createTRPCRouter({
         .where(eq(projects.id, id))
         .returning();
 
+      if (updatedProject) {
+        await syncProjectWithOutbox("upsert", updatedProject);
+      }
+
       return updatedProject;
     }),
   list: publicProcedure
@@ -107,7 +112,17 @@ export const projectRouter = createTRPCRouter({
     .input(projectSchema)
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
-      const [project] = await db.insert(projects).values(input).returning();
+      const [project] = await db
+        .insert(projects)
+        .values({
+          ...input,
+          isPublished: true,
+        })
+        .returning();
+
+      if (project) {
+        await syncProjectWithOutbox("upsert", project);
+      }
 
       return project;
     }),
@@ -115,7 +130,7 @@ export const projectRouter = createTRPCRouter({
     .input(updateProjectSchema)
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
-      const { id, ...updateData } = input;
+      const { id, imageUrl: _imageUrl, ...updateData } = input;
 
       const [updatedProject] = await db
         .update(projects)
@@ -125,6 +140,10 @@ export const projectRouter = createTRPCRouter({
         })
         .where(eq(projects.id, id))
         .returning();
+
+      if (updatedProject) {
+        await syncProjectWithOutbox("upsert", updatedProject);
+      }
 
       return updatedProject;
     }),
@@ -149,12 +168,22 @@ export const projectRouter = createTRPCRouter({
       formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
 
+      const [deletedProject] = await db
+        .delete(projects)
+        .where(eq(projects.id, id))
+        .returning();
+
+      if (!deletedProject) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Project not found",
+        });
+      }
+
+      await syncProjectWithOutbox("delete", id);
+
       try {
-        const deleteProject = db
-          .delete(projects)
-          .where(eq(projects.id, id))
-          .returning();
-        const deleteImage = fetch(
+        const response = await fetch(
           `https://api.cloudinary.com/v1_1/${env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
           {
             method: "POST",
@@ -164,35 +193,20 @@ export const projectRouter = createTRPCRouter({
             body: formData,
           },
         );
+        const result = (await response.json()) as CloudinaryDeleteResponse;
 
-        const [response, data] = await Promise.all([
-          deleteProject,
-          deleteImage,
-        ]);
-
-        const delRes = (await data.json()) as CloudinaryDeleteResponse;
-
-        if (delRes.result !== "ok") {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: `Cloudinary deletion failed: ${JSON.stringify(data)}`,
-          });
+        if (result.result !== "ok") {
+          console.error(
+            `Cloudinary cleanup failed after deleting project ${id}: ${result.result}`,
+          );
         }
-
-        if (!response) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to delete project",
-          });
-        }
-
-        return { success: true };
       } catch (error: unknown) {
-        console.error("Error deleting image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete image from Cloudinary",
-        });
+        console.error(
+          `Cloudinary cleanup failed after deleting project ${id}:`,
+          error,
+        );
       }
+
+      return { success: true };
     }),
 });

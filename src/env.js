@@ -15,6 +15,8 @@ export const env = createEnv({
     BETTER_AUTH_SECRET: z.string(),
     // UPSTASH_REDIS_REST_TOKEN: z.string(),
     GOOGLE_CLIENT_SECRET: z.string(),
+    CV_SITE_SYNC_URL: z.string().url().optional(),
+    CV_SITE_SYNC_SECRET: z.string().min(1).optional(),
   },
 
   /**
@@ -56,6 +58,8 @@ export const env = createEnv({
     //   process.env.NEXT_PUBLIC_UPSTASH_REDIS_REST_URL,
     // UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
     GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    CV_SITE_SYNC_URL: process.env.CV_SITE_SYNC_URL,
+    CV_SITE_SYNC_SECRET: process.env.CV_SITE_SYNC_SECRET,
     NEXT_PUBLIC_GOOGLE_CLIENT_ID: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
     NEXT_PUBLIC_LASTFM_API_KEY: process.env.NEXT_PUBLIC_LASTFM_API_KEY,
     NEXT_PUBLIC_LASTFM_USERNAME: process.env.NEXT_PUBLIC_LASTFM_USERNAME,

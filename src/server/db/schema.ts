@@ -8,6 +8,8 @@ import {
   timestamp,
   text,
   boolean,
+  integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { cuid2 } from "drizzle-cuid2/postgres";
 
@@ -114,6 +116,23 @@ export const projects = pgTable(
   },
   (table) => ({
     indexes: [index("Project_name_idx").on(table.name)],
+  }),
+);
+
+export const cvSiteSyncOutbox = pgTable(
+  "cv_site_sync_outbox",
+  {
+    id: cuid2("id").defaultRandom().primaryKey(),
+    action: text("action").notNull(),
+    projectId: text("project_id").notNull(),
+    project: jsonb("project"),
+    attempts: integer("attempts").default(0).notNull(),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (table) => ({
+    projectIdx: index("Cv_site_sync_outbox_project_idx").on(table.projectId),
   }),
 );
 

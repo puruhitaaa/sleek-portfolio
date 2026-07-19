@@ -15,6 +15,13 @@
       "when": 1739873300489,
       "tag": "0001_spicy_sue_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784472000000,
+      "tag": "0002_cv_site_sync_outbox",
+      "breakpoints": true
     }
   ]
 }
