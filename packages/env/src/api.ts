@@ -15,6 +15,8 @@ const apiEnvSchema = z.object({
   NEXT_PUBLIC_LASTFM_USERNAME: z.string().min(1),
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().min(1).optional(),
+  CV_SITE_SYNC_URL: z.string().url().optional(),
+  CV_SITE_SYNC_SECRET: z.string().min(1).optional(),
 });
 
 export const apiEnv = apiEnvSchema.parse(process.env);

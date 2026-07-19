@@ -4,6 +4,7 @@ import { ORPCError } from "@orpc/server";
 
 import { and, asc, desc, eq, lt, projects } from "@baiqueee/db";
 import { apiEnv } from "@baiqueee/env/api";
+import { syncProjectToCvSite } from "../lib/cv-site-sync";
 import { adminProcedure, publicProcedure } from "../orpc";
 
 interface CloudinaryDeleteResponse {
@@ -57,6 +58,10 @@ export const projectRouter = {
         .where(eq(projects.id, id))
         .returning();
 
+      if (updatedProject) {
+        await syncProjectToCvSite("upsert", updatedProject);
+      }
+
       return updatedProject;
     }),
   list: publicProcedure
@@ -106,7 +111,17 @@ export const projectRouter = {
     .input(projectSchema)
     .handler(async ({ context, input }) => {
       const { db } = context;
-      const [project] = await db.insert(projects).values(input).returning();
+      const [project] = await db
+        .insert(projects)
+        .values({
+          ...input,
+          isPublished: true,
+        })
+        .returning();
+
+      if (project) {
+        await syncProjectToCvSite("upsert", project);
+      }
 
       return project;
     }),
@@ -124,6 +139,10 @@ export const projectRouter = {
         })
         .where(eq(projects.id, id))
         .returning();
+
+      if (updatedProject) {
+        await syncProjectToCvSite("upsert", updatedProject);
+      }
 
       return updatedProject;
     }),
@@ -182,6 +201,8 @@ export const projectRouter = {
             message: "Failed to delete project",
           });
         }
+
+        await syncProjectToCvSite("delete", id);
 
         return { success: true };
       } catch (error: unknown) {
