@@ -64,7 +64,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "drizzle-cuid2": "^2.0.0",
-    "drizzle-orm": "^0.33.0",
+    "drizzle-orm": "0.36.4",
     "geist": "^1.5.1",
     "lowlight": "^3.3.0",
     "lucide-react": "^0.561.0",
