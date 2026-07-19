@@ -29,14 +29,58 @@ type DeletePayload = {
 
 const SYNC_TIMEOUT_MS = 5_000;
 
+function toCvSiteProject(row: {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  websiteLink: string | null;
+  githubLink: string | null;
+  youtubeLink: string | null;
+  isPinned: boolean | null;
+  isPublished: boolean | null;
+}): CvSiteSyncProject {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    image: row.image,
+    websiteLink: row.websiteLink,
+    githubLink: row.githubLink,
+    youtubeLink: row.youtubeLink,
+    isPinned: row.isPinned ?? false,
+    isPublished: row.isPublished ?? false,
+  };
+}
+
 export async function syncProjectToCvSite(
   action: "upsert" | "delete",
-  payload: CvSiteSyncProject | string,
+  payload:
+    | CvSiteSyncProject
+    | string
+    | {
+        id: string;
+        name: string;
+        description: string;
+        image: string;
+        websiteLink: string | null;
+        githubLink: string | null;
+        youtubeLink: string | null;
+        isPinned: boolean | null;
+        isPublished: boolean | null;
+      },
 ): Promise<SyncResult> {
   const url = apiEnv.CV_SITE_SYNC_URL;
   const secret = apiEnv.CV_SITE_SYNC_SECRET;
 
+  if (!url && !secret) {
+    return { skipped: true };
+  }
+
   if (!url || !secret) {
+    console.warn(
+      "cv-site sync partially configured (need both CV_SITE_SYNC_URL and CV_SITE_SYNC_SECRET); skipping",
+    );
     return { skipped: true };
   }
 
@@ -48,7 +92,12 @@ export async function syncProjectToCvSite(
         }
       : {
           action: "upsert",
-          project: payload as CvSiteSyncProject,
+          project:
+            typeof payload === "string"
+              ? (() => {
+                  throw new Error("upsert requires project payload");
+                })()
+              : toCvSiteProject(payload),
         };
 
   const controller = new AbortController();

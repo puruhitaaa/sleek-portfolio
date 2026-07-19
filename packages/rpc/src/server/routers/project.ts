@@ -152,6 +152,20 @@ export const projectRouter = {
       const { db } = context;
       const { id } = input;
 
+      const deleted = await db
+        .delete(projects)
+        .where(eq(projects.id, id))
+        .returning();
+
+      if (!deleted[0]) {
+        throw new ORPCError("NOT_FOUND", {
+          message: "Project not found",
+        });
+      }
+
+      // Always sync after DB delete so cv-site never keeps orphans
+      await syncProjectToCvSite("delete", id);
+
       const timestamp = Date.now().toString();
       const imageId =
         "projects/" + input.imageUrl.split("/").pop()!.split(".")[0]!;
@@ -168,11 +182,7 @@ export const projectRouter = {
       formData.append("timestamp", timestamp);
 
       try {
-        const deleteProject = db
-          .delete(projects)
-          .where(eq(projects.id, id))
-          .returning();
-        const deleteImage = fetch(
+        const data = await fetch(
           `https://api.cloudinary.com/v1_1/${apiEnv.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
           {
             method: "POST",
@@ -183,33 +193,20 @@ export const projectRouter = {
           },
         );
 
-        const [response, data] = await Promise.all([
-          deleteProject,
-          deleteImage,
-        ]);
-
         const delRes = (await data.json()) as CloudinaryDeleteResponse;
 
         if (delRes.result !== "ok") {
-          throw new ORPCError("INTERNAL_SERVER_ERROR", {
-            message: `Cloudinary deletion failed: ${JSON.stringify(data)}`,
-          });
+          console.error(
+            `Cloudinary deletion failed after DB delete for project ${id}: ${JSON.stringify(delRes)}`,
+          );
         }
-
-        if (!response) {
-          throw new ORPCError("INTERNAL_SERVER_ERROR", {
-            message: "Failed to delete project",
-          });
-        }
-
-        await syncProjectToCvSite("delete", id);
-
-        return { success: true };
       } catch (error: unknown) {
-        console.error("Error deleting image:", error);
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Failed to delete image from Cloudinary",
-        });
+        console.error(
+          `Cloudinary cleanup failed after DB delete for project ${id}:`,
+          error,
+        );
       }
+
+      return { success: true };
     }),
 } as const;
