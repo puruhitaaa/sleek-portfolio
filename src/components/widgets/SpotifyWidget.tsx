@@ -6,10 +6,12 @@ import { cn } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
 function SpotifyWidget() {
-  const { data: spotifyData, isLoading: loadingData } =
+  const { data: spotifyData, isLoading: loadingData, isError } =
     api.spotify.nowPlaying.useQuery(undefined, {
-      refetchInterval: 10000,
-      refetchIntervalInBackground: true,
+      refetchInterval: (query) =>
+        query.state.status === "error" ? false : 10_000,
+      refetchOnWindowFocus: false,
+      retry: false,
       staleTime: 0,
     });
 
@@ -24,6 +26,11 @@ function SpotifyWidget() {
 
           <Skeleton className="h-20 w-20" />
         </>
+      ) : isError ? (
+        <div className="flex flex-col justify-between gap-2">
+          <p className="text-sm text-zinc-400 dark:text-zinc-600">Last Played</p>
+          <h2 className="font-medium text-zinc-500">Unable to load</h2>
+        </div>
       ) : (
         <>
           <div className="flex flex-col justify-between gap-2">

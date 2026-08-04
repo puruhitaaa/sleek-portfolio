@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { env } from "@/env";
 
@@ -7,12 +8,17 @@ export const spotifyRouter = createTRPCRouter({
       `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${env.NEXT_PUBLIC_LASTFM_USERNAME}&api_key=${env.NEXT_PUBLIC_LASTFM_API_KEY}&format=json&limit=2`,
 
       {
-        headers: {
-          "Content-Type": "application/json",
-        },
         cache: "no-store",
       },
     );
+
+    if (!resp.ok) {
+      throw new TRPCError({
+        code: "BAD_GATEWAY",
+        message: `Last.fm API error: ${resp.status}`,
+      });
+    }
+
     const response = (await resp.json()) as {
       recenttracks: {
         track: Array<{
