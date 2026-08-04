@@ -7,7 +7,9 @@ import { api } from "@/trpc/react";
 
 function SpotifyWidget() {
   const { data: spotifyData, isLoading: loadingData } =
-    api.spotify.nowPlaying.useQuery();
+    api.spotify.nowPlaying.useQuery(undefined, {
+      refetchInterval: 10000,
+    });
 
   return (
     <div className="group flex flex-col gap-2 rounded-lg border border-stone-800/90 bg-stone-900/80 p-3 sm:flex-row sm:justify-between sm:gap-[initial]">
