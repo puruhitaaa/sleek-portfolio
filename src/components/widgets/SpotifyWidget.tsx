@@ -9,6 +9,8 @@ function SpotifyWidget() {
   const { data: spotifyData, isLoading: loadingData } =
     api.spotify.nowPlaying.useQuery(undefined, {
       refetchInterval: 10000,
+      refetchIntervalInBackground: true,
+      staleTime: 0,
     });
 
   return (

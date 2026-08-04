@@ -10,6 +10,7 @@ export const spotifyRouter = createTRPCRouter({
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       },
     );
     const response = (await resp.json()) as {
@@ -19,19 +20,30 @@ export const spotifyRouter = createTRPCRouter({
           artist: { "#text": string };
           url: string;
           image: Array<{ "#text": string }>;
-          "@attr"?: { nowplaying: boolean };
+          "@attr"?: { nowplaying: string };
         }>;
       };
     };
 
-    const song = response.recenttracks.track[0];
+    const tracks = response?.recenttracks?.track;
+    const song = Array.isArray(tracks) ? tracks[0] : undefined;
+
+    if (!song) {
+      return {
+        isPlaying: false,
+        songName: undefined,
+        artistName: undefined,
+        songURL: undefined,
+        imageURL: undefined,
+      };
+    }
 
     const data = {
-      isPlaying: song?.["@attr"]?.nowplaying ?? false,
-      songName: song?.name,
-      artistName: song?.artist["#text"],
-      songURL: song?.url,
-      imageURL: song?.image[3]?.["#text"],
+      isPlaying: song["@attr"]?.nowplaying === "true",
+      songName: song.name,
+      artistName: song.artist["#text"],
+      songURL: song.url,
+      imageURL: song.image[3]?.["#text"],
     };
 
     return data;
