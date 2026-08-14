@@ -1,7 +1,7 @@
 import { posts } from "@/server/db/schema";
 import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
 import { z } from "zod";
-import { asc, desc, lt, and, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 const postSchema = z.object({
@@ -56,23 +56,89 @@ export const postRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { db } = ctx;
-      const { limit, cursor, sort } = input;
+      const { limit, cursor, sort = "newest" } = input;
 
       const filters = [];
 
       if (cursor) {
-        filters.push(lt(posts.id, cursor));
+        const cursorPost = await db
+          .select({
+            id: posts.id,
+            createdAt: posts.createdAt,
+            isPinned: posts.isPinned,
+          })
+          .from(posts)
+          .where(eq(posts.id, cursor))
+          .limit(1)
+          .then((res) => res[0]);
+
+        if (cursorPost) {
+          const {
+            createdAt: cCreatedAt,
+            isPinned: cPinned,
+            id: cId,
+          } = cursorPost;
+
+          if (sort === "oldest") {
+            const cursorCondition = cPinned
+              ? or(
+                  and(
+                    eq(posts.isPinned, true),
+                    or(
+                      gt(posts.createdAt, cCreatedAt),
+                      and(
+                        eq(posts.createdAt, cCreatedAt),
+                        gt(posts.id, cId),
+                      ),
+                    ),
+                  ),
+                  eq(posts.isPinned, false),
+                )
+              : and(
+                  eq(posts.isPinned, false),
+                  or(
+                    gt(posts.createdAt, cCreatedAt),
+                    and(
+                      eq(posts.createdAt, cCreatedAt),
+                      gt(posts.id, cId),
+                    ),
+                  ),
+                );
+            filters.push(cursorCondition);
+          } else {
+            const cursorCondition = cPinned
+              ? or(
+                  and(
+                    eq(posts.isPinned, true),
+                    or(
+                      lt(posts.createdAt, cCreatedAt),
+                      and(
+                        eq(posts.createdAt, cCreatedAt),
+                        lt(posts.id, cId),
+                      ),
+                    ),
+                  ),
+                  eq(posts.isPinned, false),
+                )
+              : and(
+                  eq(posts.isPinned, false),
+                  or(
+                    lt(posts.createdAt, cCreatedAt),
+                    and(
+                      eq(posts.createdAt, cCreatedAt),
+                      lt(posts.id, cId),
+                    ),
+                  ),
+                );
+            filters.push(cursorCondition);
+          }
+        }
       }
 
-      const sortOrder = (() => {
-        switch (sort) {
-          case "oldest":
-            return [desc(posts.isPinned), asc(posts.createdAt)];
-          case "newest":
-          default:
-            return [desc(posts.isPinned), desc(posts.createdAt)];
-        }
-      })();
+      const sortOrder =
+        sort === "oldest"
+          ? [desc(posts.isPinned), asc(posts.createdAt), asc(posts.id)]
+          : [desc(posts.isPinned), desc(posts.createdAt), desc(posts.id)];
 
       const items = await db
         .select()
@@ -83,8 +149,9 @@ export const postRouter = createTRPCRouter({
 
       let nextCursor: typeof cursor = undefined;
       if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem?.id;
+        items.pop();
+        const lastItem = items[items.length - 1];
+        nextCursor = lastItem?.id;
       }
 
       return { items, nextCursor };

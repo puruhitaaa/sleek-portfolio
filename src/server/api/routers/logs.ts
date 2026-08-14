@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
 import { adminProcedure, createTRPCRouter, publicProcedure } from "../trpc";
 import { z } from "zod";
 import { logs } from "@/server/db/schema";
@@ -29,7 +29,7 @@ export const logsRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { db } = ctx;
-      const { limit, cursor, category, published, sort } = input;
+      const { limit, cursor, category, published, sort = "newest" } = input;
 
       const filters = [];
 
@@ -42,18 +42,41 @@ export const logsRouter = createTRPCRouter({
       }
 
       if (cursor) {
-        filters.push(lt(logs.id, cursor));
+        const cursorLog = await db
+          .select({
+            id: logs.id,
+            createdAt: logs.createdAt,
+          })
+          .from(logs)
+          .where(eq(logs.id, cursor))
+          .limit(1)
+          .then((res) => res[0]);
+
+        if (cursorLog) {
+          const { createdAt: cCreatedAt, id: cId } = cursorLog;
+
+          if (sort === "oldest") {
+            filters.push(
+              or(
+                gt(logs.createdAt, cCreatedAt),
+                and(eq(logs.createdAt, cCreatedAt), gt(logs.id, cId)),
+              ),
+            );
+          } else {
+            filters.push(
+              or(
+                lt(logs.createdAt, cCreatedAt),
+                and(eq(logs.createdAt, cCreatedAt), lt(logs.id, cId)),
+              ),
+            );
+          }
+        }
       }
 
-      const sortOrder = (() => {
-        switch (sort) {
-          case "oldest":
-            return [asc(logs.createdAt)];
-          case "newest":
-          default:
-            return [desc(logs.createdAt)];
-        }
-      })();
+      const sortOrder =
+        sort === "oldest"
+          ? [asc(logs.createdAt), asc(logs.id)]
+          : [desc(logs.createdAt), desc(logs.id)];
 
       const items = await db
         .select()
@@ -64,8 +87,9 @@ export const logsRouter = createTRPCRouter({
 
       let nextCursor: typeof cursor = undefined;
       if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem?.id;
+        items.pop();
+        const lastItem = items[items.length - 1];
+        nextCursor = lastItem?.id;
       }
 
       return { items, nextCursor };

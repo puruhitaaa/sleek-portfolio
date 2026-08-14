@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
 import { z } from "zod";
 import { projects } from "@/server/db/schema";
@@ -75,23 +75,89 @@ export const projectRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const { db } = ctx;
-      const { limit, cursor, sort } = input;
+      const { limit, cursor, sort = "newest" } = input;
 
       const filters = [];
 
       if (cursor) {
-        filters.push(lt(projects.id, cursor));
+        const cursorProject = await db
+          .select({
+            id: projects.id,
+            createdAt: projects.createdAt,
+            isPinned: projects.isPinned,
+          })
+          .from(projects)
+          .where(eq(projects.id, cursor))
+          .limit(1)
+          .then((res) => res[0]);
+
+        if (cursorProject) {
+          const {
+            createdAt: cCreatedAt,
+            isPinned: cPinned,
+            id: cId,
+          } = cursorProject;
+
+          if (sort === "oldest") {
+            const cursorCondition = cPinned
+              ? or(
+                  and(
+                    eq(projects.isPinned, true),
+                    or(
+                      gt(projects.createdAt, cCreatedAt),
+                      and(
+                        eq(projects.createdAt, cCreatedAt),
+                        gt(projects.id, cId),
+                      ),
+                    ),
+                  ),
+                  eq(projects.isPinned, false),
+                )
+              : and(
+                  eq(projects.isPinned, false),
+                  or(
+                    gt(projects.createdAt, cCreatedAt),
+                    and(
+                      eq(projects.createdAt, cCreatedAt),
+                      gt(projects.id, cId),
+                    ),
+                  ),
+                );
+            filters.push(cursorCondition);
+          } else {
+            const cursorCondition = cPinned
+              ? or(
+                  and(
+                    eq(projects.isPinned, true),
+                    or(
+                      lt(projects.createdAt, cCreatedAt),
+                      and(
+                        eq(projects.createdAt, cCreatedAt),
+                        lt(projects.id, cId),
+                      ),
+                    ),
+                  ),
+                  eq(projects.isPinned, false),
+                )
+              : and(
+                  eq(projects.isPinned, false),
+                  or(
+                    lt(projects.createdAt, cCreatedAt),
+                    and(
+                      eq(projects.createdAt, cCreatedAt),
+                      lt(projects.id, cId),
+                    ),
+                  ),
+                );
+            filters.push(cursorCondition);
+          }
+        }
       }
 
-      const sortOrder = (() => {
-        switch (sort) {
-          case "oldest":
-            return [desc(projects.isPinned), asc(projects.createdAt)];
-          case "newest":
-          default:
-            return [desc(projects.isPinned), desc(projects.createdAt)];
-        }
-      })();
+      const sortOrder =
+        sort === "oldest"
+          ? [desc(projects.isPinned), asc(projects.createdAt), asc(projects.id)]
+          : [desc(projects.isPinned), desc(projects.createdAt), desc(projects.id)];
 
       const items = await db
         .select()
@@ -102,8 +168,9 @@ export const projectRouter = createTRPCRouter({
 
       let nextCursor: typeof cursor = undefined;
       if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem?.id;
+        items.pop();
+        const lastItem = items[items.length - 1];
+        nextCursor = lastItem?.id;
       }
 
       return { items, nextCursor };

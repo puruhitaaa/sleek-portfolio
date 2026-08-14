@@ -1,7 +1,7 @@
 import { comments, users } from "@/server/db/schema";
 import { createTRPCRouter, publicProcedure, privateProcedure } from "../trpc";
 import { z } from "zod";
-import { lt, and, eq, desc } from "drizzle-orm";
+import { and, desc, eq, lt, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 // import ratelimit from "@/lib/redis/ratelimit";
 
@@ -20,7 +20,25 @@ export const guestbookRouter = createTRPCRouter({
       const filters = [];
 
       if (cursor) {
-        filters.push(lt(comments.id, cursor));
+        const cursorComment = await db
+          .select({
+            id: comments.id,
+            createdAt: comments.createdAt,
+          })
+          .from(comments)
+          .where(eq(comments.id, cursor))
+          .limit(1)
+          .then((res) => res[0]);
+
+        if (cursorComment) {
+          const { createdAt: cCreatedAt, id: cId } = cursorComment;
+          filters.push(
+            or(
+              lt(comments.createdAt, cCreatedAt),
+              and(eq(comments.createdAt, cCreatedAt), lt(comments.id, cId)),
+            ),
+          );
+        }
       }
 
       const items = await db
@@ -37,13 +55,14 @@ export const guestbookRouter = createTRPCRouter({
         .from(comments)
         .leftJoin(users, eq(comments.userId, users.id))
         .where(filters.length ? and(...filters) : undefined)
-        .orderBy(desc(comments.createdAt))
+        .orderBy(desc(comments.createdAt), desc(comments.id))
         .limit(limit + 1);
 
       let nextCursor: typeof cursor = undefined;
       if (items.length > limit) {
-        const nextItem = items.pop();
-        nextCursor = nextItem?.id;
+        items.pop();
+        const lastItem = items[items.length - 1];
+        nextCursor = lastItem?.id;
       }
 
       return { items, nextCursor };
