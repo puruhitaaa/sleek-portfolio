@@ -1,62 +1,15 @@
-import { posts } from "@/server/db/schema";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
-import { z } from "zod";
+import { Elysia, status, t } from "elysia";
 import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { posts } from "@/server/db/schema";
+import { authPlugin } from "../context";
 
-const postSchema = z.object({
-  title: z.string().min(1),
-  content: z.string().min(1),
-});
-
-const updatePostSchema = postSchema.extend({
-  id: z.string(),
-});
-
-const deletePostSchema = updatePostSchema.pick({ id: true });
-
-export const postRouter = createTRPCRouter({
-  togglePin: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
-
-      const post = await db
-        .select({ isPinned: posts.isPinned })
-        .from(posts)
-        .where(eq(posts.id, id))
-        .then((res) => res[0]);
-
-      if (!post) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Post not found",
-        });
-      }
-
-      const [updatedPost] = await db
-        .update(posts)
-        .set({
-          isPinned: !post.isPinned,
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, id))
-        .returning();
-
-      return updatedPost;
-    }),
-  list: publicProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-        cursor: z.string().optional(),
-        sort: z.enum(["newest", "oldest"]).default("newest").optional(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { limit, cursor, sort = "newest" } = input;
+export const postsRouter = new Elysia({ prefix: "/posts" })
+  .use(authPlugin)
+  .get(
+    "/",
+    async ({ db, query }) => {
+      const limit = query.limit ? Math.min(Math.max(Number(query.limit), 1), 100) : 10;
+      const { cursor, sort = "newest" } = query;
 
       const filters = [];
 
@@ -147,7 +100,7 @@ export const postRouter = createTRPCRouter({
         .orderBy(...sortOrder)
         .limit(limit + 1);
 
-      let nextCursor: typeof cursor = undefined;
+      let nextCursor: string | undefined = undefined;
       if (items.length > limit) {
         items.pop();
         const lastItem = items[items.length - 1];
@@ -155,52 +108,19 @@ export const postRouter = createTRPCRouter({
       }
 
       return { items, nextCursor };
-    }),
-  create: adminProcedure.input(postSchema).mutation(async ({ ctx, input }) => {
-    const { db } = ctx;
-    const [post] = await db
-      .insert(posts)
-      .values({
-        title: input.title,
-        content: input.content,
-        isPublished: true,
-      })
-      .returning();
-
-    return post;
-  }),
-  update: adminProcedure
-    .input(updatePostSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id, ...updateData } = input;
-
-      const [updatedPost] = await db
-        .update(posts)
-        .set({
-          ...updateData,
-          updatedAt: new Date(),
-        })
-        .where(eq(posts.id, id))
-        .returning();
-
-      return updatedPost;
-    }),
-  delete: adminProcedure
-    .input(deletePostSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
-
-      await db.delete(posts).where(eq(posts.id, id));
-
-      return { success: true };
-    }),
-  detail: publicProcedure
-    .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.Numeric({ default: 10, minimum: 1, maximum: 100 })),
+        cursor: t.Optional(t.String()),
+        sort: t.Optional(t.Union([t.Literal("newest"), t.Literal("oldest")], { default: "newest" })),
+      }),
+    },
+  )
+  .get(
+    "/:id",
+    async ({ db, params }) => {
+      const { id } = params;
 
       const post = await db
         .select()
@@ -210,12 +130,130 @@ export const postRouter = createTRPCRouter({
         .then((res) => res[0]);
 
       if (!post) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Post not found",
-        });
+        return status(404, { message: "Post not found" });
       }
 
       return post;
-    }),
-});
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+    },
+  )
+  .post(
+    "/",
+    async ({ db, body }) => {
+      const [post] = await db
+        .insert(posts)
+        .values({
+          title: body.title,
+          content: body.content,
+          isPublished: true,
+        })
+        .returning();
+
+      return post;
+    },
+    {
+      isAdmin: true,
+      body: t.Object({
+        title: t.String({ minLength: 1 }),
+        content: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+  .put(
+    "/:id",
+    async ({ db, params, body }) => {
+      const { id } = params;
+
+      const existingPost = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, id))
+        .limit(1)
+        .then((res) => res[0]);
+
+      if (!existingPost) {
+        return status(404, { message: "Post not found" });
+      }
+
+      const [updatedPost] = await db
+        .update(posts)
+        .set({
+          ...body,
+          updatedAt: new Date(),
+        })
+        .where(eq(posts.id, id))
+        .returning();
+
+      return updatedPost;
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: t.Object({
+        title: t.String({ minLength: 1 }),
+        content: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+  .patch(
+    "/:id/pin",
+    async ({ db, params }) => {
+      const { id } = params;
+
+      const post = await db
+        .select({ isPinned: posts.isPinned })
+        .from(posts)
+        .where(eq(posts.id, id))
+        .then((res) => res[0]);
+
+      if (!post) {
+        return status(404, { message: "Post not found" });
+      }
+
+      const [updatedPost] = await db
+        .update(posts)
+        .set({
+          isPinned: !post.isPinned,
+          updatedAt: new Date(),
+        })
+        .where(eq(posts.id, id))
+        .returning();
+
+      return updatedPost;
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+    },
+  )
+  .delete(
+    "/:id",
+    async ({ db, params }) => {
+      const { id } = params;
+
+      const [deletedPost] = await db
+        .delete(posts)
+        .where(eq(posts.id, id))
+        .returning();
+
+      if (!deletedPost) {
+        return status(404, { message: "Post not found" });
+      }
+
+      return { success: true };
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+    },
+  );

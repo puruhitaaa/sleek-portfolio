@@ -25,8 +25,8 @@ import { useState } from "react";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
 import { MinimalTiptapEditor } from "@/components/minimal-tiptap";
-import { api } from "@/trpc/react";
-import type { RouterOutput } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -35,9 +35,19 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface PostItemData {
+  id: string;
+  title: string;
+  content: string;
+  isPinned?: boolean | null;
+  isPublished?: boolean | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string | null;
+}
+
 interface PostFormDialogProps {
   mode: "create" | "edit";
-  post?: RouterOutput["post"]["list"]["items"][number];
+  post?: PostItemData;
   trigger?: React.ReactNode;
 }
 
@@ -48,8 +58,7 @@ export default function PostFormDialog({
 }: PostFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [sort] = useQueryState("sort");
-
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -59,7 +68,18 @@ export default function PostFormDialog({
     },
   });
 
-  const createMutation = api.post.create.useMutation({
+  const createMutation = useMutation({
+    mutationFn: async (values: FormData) => {
+      const { data, error } = await api.posts.post(values);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to create post",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Creating post...");
       return { toastLoading };
@@ -68,11 +88,7 @@ export default function PostFormDialog({
       toast.dismiss(context?.toastLoading);
       toast.success("Post created successfully");
 
-      utils.post.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["posts", "list"] });
 
       form.reset();
       setOpen(false);
@@ -83,7 +99,19 @@ export default function PostFormDialog({
     },
   });
 
-  const updateMutation = api.post.update.useMutation({
+  const updateMutation = useMutation({
+    mutationFn: async (values: FormData & { id: string }) => {
+      const { id, ...body } = values;
+      const { data, error } = await api.posts({ id }).put(body);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to update post",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Updating post...");
       return { toastLoading };
@@ -92,11 +120,7 @@ export default function PostFormDialog({
       toast.dismiss(context?.toastLoading);
       toast.success("Post updated successfully");
 
-      utils.post.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["posts", "list"] });
       form.reset();
       setOpen(false);
     },

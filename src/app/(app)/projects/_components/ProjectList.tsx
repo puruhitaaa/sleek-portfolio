@@ -5,24 +5,32 @@ import { useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { useQueryState } from "nuqs";
 import { LoadSkeleton } from "./LoadSkeleton";
-import { api } from "@/trpc/react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 export default function ProjectList() {
   const { ref, inView } = useInView();
   const [sort] = useQueryState("sort");
 
+  const currentSort = (sort === "oldest" ? "oldest" : "newest") as "newest" | "oldest";
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
-    api.project.list.useInfiniteQuery(
-      {
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
+    useInfiniteQuery({
+      queryKey: ["projects", "list", { sort: currentSort }],
+      queryFn: async ({ pageParam }) => {
+        const { data, error } = await api.projects.get({
+          query: {
+            limit: 10,
+            cursor: pageParam,
+            sort: currentSort,
+          },
+        });
+        if (error) throw error;
+        return data;
       },
-      {
-        initialCursor: undefined,
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    );
+      initialPageParam: undefined as string | undefined,
+      getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
+    });
 
   useEffect(() => {
     if (inView && hasNextPage) {

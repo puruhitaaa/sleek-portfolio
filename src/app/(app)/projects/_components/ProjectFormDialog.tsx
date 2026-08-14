@@ -26,8 +26,8 @@ import { useState } from "react";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
 import CustomImageUpload from "./CustomImageUploader";
-import { api } from "@/trpc/react";
-import type { RouterOutput } from "@/lib/utils";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 const formSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -40,9 +40,23 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+interface ProjectItemData {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  websiteLink?: string | null;
+  githubLink?: string | null;
+  youtubeLink?: string | null;
+  isPinned?: boolean | null;
+  isPublished?: boolean | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string | null;
+}
+
 interface ProjectFormDialogProps {
   mode: "create" | "edit";
-  project?: RouterOutput["project"]["list"]["items"][number];
+  project?: ProjectItemData;
   trigger?: React.ReactNode;
 }
 
@@ -53,8 +67,7 @@ export default function ProjectFormDialog({
 }: ProjectFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [sort] = useQueryState("sort");
-
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -67,7 +80,26 @@ export default function ProjectFormDialog({
       youtubeLink: project?.youtubeLink,
     },
   });
-  const createMutation = api.project.create.useMutation({
+
+  const createMutation = useMutation({
+    mutationFn: async (values: FormData) => {
+      const { data, error } = await api.projects.post({
+        name: values.name,
+        description: values.description,
+        image: values.image,
+        websiteLink: values.websiteLink ?? null,
+        githubLink: values.githubLink ?? null,
+        youtubeLink: values.youtubeLink ?? null,
+      });
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to create project",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Creating project...", {
         duration: 1500,
@@ -79,11 +111,7 @@ export default function ProjectFormDialog({
       toast.success("Project created successfully", {
         duration: 1500,
       });
-      utils.project.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["projects", "list"] });
       form.reset();
       setOpen(false);
     },
@@ -95,7 +123,27 @@ export default function ProjectFormDialog({
     },
   });
 
-  const updateMutation = api.project.update.useMutation({
+  const updateMutation = useMutation({
+    mutationFn: async (values: FormData & { id: string }) => {
+      const { id, ...rest } = values;
+      const { data, error } = await api.projects({ id }).put({
+        name: rest.name,
+        description: rest.description,
+        image: rest.image,
+        imageUrl: rest.image,
+        websiteLink: rest.websiteLink ?? null,
+        githubLink: rest.githubLink ?? null,
+        youtubeLink: rest.youtubeLink ?? null,
+      });
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to update project",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Updating project...", {
         duration: 1500,
@@ -107,11 +155,7 @@ export default function ProjectFormDialog({
       toast.success("Project updated successfully", {
         duration: 1500,
       });
-      utils.project.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["projects", "list"] });
       form.reset();
       setOpen(false);
     },
@@ -130,7 +174,6 @@ export default function ProjectFormDialog({
       await updateMutation.mutateAsync({
         id: project?.id!,
         ...values,
-        imageUrl: values.image,
       });
     }
   }

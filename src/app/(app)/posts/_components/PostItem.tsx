@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { cn, type RouterOutput } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { MoreHorizontal, Pencil, Pin, Trash } from "lucide-react";
 import {
   Popover,
@@ -11,21 +11,38 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import PostFormDialog from "./PostFormDialog";
-import { useQueryState } from "nuqs";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 import { useSession } from "@/lib/auth-client";
 
-type PostItemProps = RouterOutput["post"]["list"]["items"][number];
+interface PostItemProps {
+  id: string;
+  title: string;
+  content: string;
+  isPinned?: boolean | null;
+  isPublished?: boolean | null;
+  createdAt: Date | string;
+  updatedAt?: Date | string | null;
+}
 
 export function PostItem(post: PostItemProps) {
   const { id, title, createdAt, isPinned } = post;
-  const [sort] = useQueryState("sort");
-
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const { data: authData } = useSession();
 
-  const deleteMutation = api.post.delete.useMutation({
+  const deleteMutation = useMutation({
+    mutationFn: async (input: { id: string }) => {
+      const { data, error } = await api.posts({ id: input.id }).delete();
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to delete post",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Deleting post...");
       return { toastLoading };
@@ -34,11 +51,7 @@ export function PostItem(post: PostItemProps) {
       toast.dismiss(context?.toastLoading);
       toast.success("Post deleted successfully");
 
-      utils.post.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["posts", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
@@ -46,7 +59,18 @@ export function PostItem(post: PostItemProps) {
     },
   });
 
-  const togglePinMutation = api.post.togglePin.useMutation({
+  const togglePinMutation = useMutation({
+    mutationFn: async (input: { id: string }) => {
+      const { data, error } = await api.posts({ id: input.id }).pin.patch();
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to toggle pin",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading(
         `${isPinned ? "Unpinning" : "Pinning"} post...`,
@@ -57,11 +81,7 @@ export function PostItem(post: PostItemProps) {
       toast.dismiss(context?.toastLoading);
       toast.success(`Post ${isPinned ? "unpinned" : "pinned"} successfully`);
 
-      utils.post.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["posts", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);

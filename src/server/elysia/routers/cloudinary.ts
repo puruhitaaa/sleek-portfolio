@@ -1,8 +1,7 @@
+import { Elysia, status, t } from "elysia";
 import { createHash } from "crypto";
-import { createTRPCRouter, adminProcedure } from "../trpc";
-import { z } from "zod";
-import { TRPCError } from "@trpc/server";
 import { env } from "@/env";
+import { authPlugin } from "../context";
 
 interface CloudinaryDeleteResponse {
   result: string;
@@ -13,15 +12,16 @@ interface CloudinaryUploadResponse {
   public_id: string;
 }
 
-export const cloudinaryRouter = createTRPCRouter({
-  uploadImage: adminProcedure
-    .input(z.object({ image: z.string(), folder: z.string() }))
-    .mutation(async ({ input }) => {
+export const cloudinaryRouter = new Elysia({ prefix: "/cloudinary" })
+  .use(authPlugin)
+  .post(
+    "/upload",
+    async ({ body }) => {
       const timestamp = Date.now().toString();
 
       const params: Record<string, string> = {
         timestamp,
-        folder: input.folder,
+        folder: body.folder,
       };
 
       const signatureString =
@@ -35,8 +35,8 @@ export const cloudinaryRouter = createTRPCRouter({
         .digest("hex");
 
       const formData = new URLSearchParams();
-      formData.append("file", input.image);
-      formData.append("folder", input.folder);
+      formData.append("file", body.image);
+      formData.append("folder", body.folder);
       formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
       formData.append("signature", signature);
@@ -56,34 +56,37 @@ export const cloudinaryRouter = createTRPCRouter({
         const data = (await response.json()) as CloudinaryUploadResponse;
 
         if (!response.ok) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          return status(500, {
             message: `Cloudinary upload failed: ${JSON.stringify(data)}`,
           });
         }
 
         return data;
-      } catch (error) {
-        console.error("Error uploading image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to upload image to Cloudinary",
-        });
+      } catch (err) {
+        console.error("Error uploading image:", err);
+        return status(500, { message: "Failed to upload image to Cloudinary" });
       }
-    }),
-
-  deleteImage: adminProcedure
-    .input(z.object({ publicId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
+    },
+    {
+      isAdmin: true,
+      body: t.Object({
+        image: t.String({ minLength: 1 }),
+        folder: t.String({ minLength: 1 }),
+      }),
+    },
+  )
+  .post(
+    "/delete",
+    async ({ body }) => {
       const timestamp = Date.now().toString();
 
-      const signatureString = `public_id=${input.publicId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
+      const signatureString = `public_id=${body.publicId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
       const signature = createHash("sha1")
         .update(signatureString)
         .digest("hex");
 
       const formData = new URLSearchParams();
-      formData.append("public_id", input.publicId);
+      formData.append("public_id", body.publicId);
       formData.append("signature", signature);
       formData.append("api_key", env.NEXT_PUBLIC_CLOUDINARY_API_KEY);
       formData.append("timestamp", timestamp);
@@ -103,26 +106,27 @@ export const cloudinaryRouter = createTRPCRouter({
         const data = (await response.json()) as CloudinaryDeleteResponse;
 
         if (!response.ok) {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          return status(500, {
             message: `Cloudinary deletion failed: ${JSON.stringify(data)}`,
           });
         }
 
         if (data.result !== "ok") {
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
+          return status(500, {
             message: "Image deletion was not successful",
           });
         }
 
         return { success: true };
-      } catch (error) {
-        console.error("Error deleting image:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete image from Cloudinary",
-        });
+      } catch (err) {
+        console.error("Error deleting image:", err);
+        return status(500, { message: "Failed to delete image from Cloudinary" });
       }
-    }),
-});
+    },
+    {
+      isAdmin: true,
+      body: t.Object({
+        publicId: t.String({ minLength: 1 }),
+      }),
+    },
+  );

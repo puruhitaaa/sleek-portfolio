@@ -1,22 +1,17 @@
-import { TRPCError } from "@trpc/server";
-import { createTRPCRouter, publicProcedure } from "../trpc";
+import { Elysia, status } from "elysia";
 import { env } from "@/env";
 
-export const spotifyRouter = createTRPCRouter({
-  nowPlaying: publicProcedure.query(async () => {
+export const spotifyRouter = new Elysia({ prefix: "/spotify" })
+  .get("/now-playing", async () => {
     const resp = await fetch(
       `https://ws.audioscrobbler.com/2.0/?method=user.getrecenttracks&user=${env.NEXT_PUBLIC_LASTFM_USERNAME}&api_key=${env.NEXT_PUBLIC_LASTFM_API_KEY}&format=json&limit=2`,
-
       {
         cache: "no-store",
       },
     );
 
     if (!resp.ok) {
-      throw new TRPCError({
-        code: "BAD_GATEWAY",
-        message: `Last.fm API error: ${resp.status}`,
-      });
+      return status(502, { message: `Last.fm API error: ${resp.status}` });
     }
 
     const response = (await resp.json()) as {
@@ -44,14 +39,11 @@ export const spotifyRouter = createTRPCRouter({
       };
     }
 
-    const data = {
+    return {
       isPlaying: song["@attr"]?.nowplaying === "true",
       songName: song.name,
       artistName: song.artist["#text"],
       songURL: song.url,
       imageURL: song.image[3]?.["#text"],
     };
-
-    return data;
-  }),
-});
+  });

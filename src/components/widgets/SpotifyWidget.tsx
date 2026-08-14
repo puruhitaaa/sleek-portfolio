@@ -3,17 +3,23 @@
 import Image from "next/image";
 import { Skeleton } from "../ui/skeleton";
 import { cn } from "@/lib/utils";
-import { api } from "@/trpc/react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 function SpotifyWidget() {
-  const { data: spotifyData, isLoading: loadingData, isError } =
-    api.spotify.nowPlaying.useQuery(undefined, {
-      refetchInterval: (query) =>
-        query.state.status === "error" ? false : 10_000,
-      refetchOnWindowFocus: false,
-      retry: false,
-      staleTime: 0,
-    });
+  const { data: spotifyData, isLoading: loadingData, isError } = useQuery({
+    queryKey: ["spotify", "nowPlaying"],
+    queryFn: async () => {
+      const { data, error } = await api.spotify["now-playing"].get();
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: (query) =>
+      query.state.status === "error" ? false : 10_000,
+    refetchOnWindowFocus: false,
+    retry: false,
+    staleTime: 0,
+  });
 
   return (
     <div className="group flex flex-col gap-2 rounded-lg border border-stone-800/90 bg-stone-900/80 p-3 sm:flex-row sm:justify-between sm:gap-[initial]">

@@ -1,81 +1,22 @@
+import { Elysia, status, t } from "elysia";
 import { and, asc, desc, eq, gt, lt, or } from "drizzle-orm";
-import { createTRPCRouter, publicProcedure, adminProcedure } from "../trpc";
-import { z } from "zod";
+import { createHash } from "crypto";
 import { projects } from "@/server/db/schema";
 import { env } from "@/env";
-import { createHash } from "crypto";
-import { TRPCError } from "@trpc/server";
 import { syncProjectWithOutbox } from "@/server/cv-site-sync";
+import { authPlugin } from "../context";
 
 interface CloudinaryDeleteResponse {
   result: string;
 }
 
-const projectSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().min(1),
-  image: z.string().url(),
-  websiteLink: z.string().url().optional().nullable(),
-  githubLink: z.string().url().optional().nullable(),
-  youtubeLink: z.string().url().optional().nullable(),
-});
-
-const updateProjectSchema = projectSchema.extend({
-  id: z.string(),
-  imageUrl: z.string().url(),
-});
-
-const deleteProjectSchema = updateProjectSchema.pick({
-  id: true,
-  imageUrl: true,
-});
-
-export const projectRouter = createTRPCRouter({
-  togglePin: adminProcedure
-    .input(z.object({ id: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
-
-      const project = await db
-        .select({ isPinned: projects.isPinned })
-        .from(projects)
-        .where(eq(projects.id, id))
-        .then((res) => res[0]);
-
-      if (!project) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Project not found",
-        });
-      }
-
-      const [updatedProject] = await db
-        .update(projects)
-        .set({
-          isPinned: !project.isPinned,
-          updatedAt: new Date(),
-        })
-        .where(eq(projects.id, id))
-        .returning();
-
-      if (updatedProject) {
-        await syncProjectWithOutbox("upsert", updatedProject);
-      }
-
-      return updatedProject;
-    }),
-  list: publicProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(10),
-        cursor: z.string().optional(),
-        sort: z.enum(["newest", "oldest"]).default("newest").optional(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { limit, cursor, sort = "newest" } = input;
+export const projectsRouter = new Elysia({ prefix: "/projects" })
+  .use(authPlugin)
+  .get(
+    "/",
+    async ({ db, query }) => {
+      const limit = query.limit ? Math.min(Math.max(Number(query.limit), 1), 100) : 10;
+      const { cursor, sort = "newest" } = query;
 
       const filters = [];
 
@@ -166,7 +107,7 @@ export const projectRouter = createTRPCRouter({
         .orderBy(...sortOrder)
         .limit(limit + 1);
 
-      let nextCursor: typeof cursor = undefined;
+      let nextCursor: string | undefined = undefined;
       if (items.length > limit) {
         items.pop();
         const lastItem = items[items.length - 1];
@@ -174,15 +115,22 @@ export const projectRouter = createTRPCRouter({
       }
 
       return { items, nextCursor };
-    }),
-  create: adminProcedure
-    .input(projectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+    },
+    {
+      query: t.Object({
+        limit: t.Optional(t.Numeric({ default: 10, minimum: 1, maximum: 100 })),
+        cursor: t.Optional(t.String()),
+        sort: t.Optional(t.Union([t.Literal("newest"), t.Literal("oldest")], { default: "newest" })),
+      }),
+    },
+  )
+  .post(
+    "/",
+    async ({ db, body }) => {
       const [project] = await db
         .insert(projects)
         .values({
-          ...input,
+          ...body,
           isPublished: true,
         })
         .returning();
@@ -192,12 +140,24 @@ export const projectRouter = createTRPCRouter({
       }
 
       return project;
-    }),
-  update: adminProcedure
-    .input(updateProjectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id, imageUrl: _imageUrl, ...updateData } = input;
+    },
+    {
+      isAdmin: true,
+      body: t.Object({
+        name: t.String({ minLength: 1 }),
+        description: t.String({ minLength: 1 }),
+        image: t.String({ format: "uri" }),
+        websiteLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+        githubLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+        youtubeLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+      }),
+    },
+  )
+  .put(
+    "/:id",
+    async ({ db, params, body }) => {
+      const { id } = params;
+      const { imageUrl: _imageUrl, ...updateData } = body;
 
       const [updatedProject] = await db
         .update(projects)
@@ -208,21 +168,76 @@ export const projectRouter = createTRPCRouter({
         .where(eq(projects.id, id))
         .returning();
 
+      if (!updatedProject) {
+        return status(404, { message: "Project not found" });
+      }
+
+      await syncProjectWithOutbox("upsert", updatedProject);
+
+      return updatedProject;
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: t.Object({
+        name: t.String({ minLength: 1 }),
+        description: t.String({ minLength: 1 }),
+        image: t.String({ format: "uri" }),
+        imageUrl: t.Optional(t.String({ format: "uri" })),
+        websiteLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+        githubLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+        youtubeLink: t.Optional(t.Nullable(t.String({ format: "uri" }))),
+      }),
+    },
+  )
+  .patch(
+    "/:id/pin",
+    async ({ db, params }) => {
+      const { id } = params;
+
+      const project = await db
+        .select({ isPinned: projects.isPinned })
+        .from(projects)
+        .where(eq(projects.id, id))
+        .then((res) => res[0]);
+
+      if (!project) {
+        return status(404, { message: "Project not found" });
+      }
+
+      const [updatedProject] = await db
+        .update(projects)
+        .set({
+          isPinned: !project.isPinned,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, id))
+        .returning();
+
       if (updatedProject) {
         await syncProjectWithOutbox("upsert", updatedProject);
       }
 
       return updatedProject;
-    }),
-  delete: adminProcedure
-    .input(deleteProjectSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const { id } = input;
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+    },
+  )
+  .delete(
+    "/:id",
+    async ({ db, params, body }) => {
+      const { id } = params;
+      const { imageUrl } = body;
 
       const timestamp = Date.now().toString();
       const imageId =
-        "projects/" + input.imageUrl.split("/").pop()!.split(".")[0]!;
+        "projects/" + imageUrl.split("/").pop()!.split(".")[0]!;
 
       const signatureString = `public_id=${imageId}&timestamp=${timestamp}${env.CLOUDINARY_API_SECRET}`;
       const signature = createHash("sha1")
@@ -241,10 +256,7 @@ export const projectRouter = createTRPCRouter({
         .returning();
 
       if (!deletedProject) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Project not found",
-        });
+        return status(404, { message: "Project not found" });
       }
 
       await syncProjectWithOutbox("delete", id);
@@ -267,13 +279,22 @@ export const projectRouter = createTRPCRouter({
             `Cloudinary cleanup failed after deleting project ${id}: ${result.result}`,
           );
         }
-      } catch (error: unknown) {
+      } catch (err: unknown) {
         console.error(
           `Cloudinary cleanup failed after deleting project ${id}:`,
-          error,
+          err,
         );
       }
 
       return { success: true };
-    }),
-});
+    },
+    {
+      isAdmin: true,
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: t.Object({
+        imageUrl: t.String(),
+      }),
+    },
+  );

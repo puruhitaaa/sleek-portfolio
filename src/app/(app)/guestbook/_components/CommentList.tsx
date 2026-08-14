@@ -6,7 +6,8 @@ import { useInView } from "react-intersection-observer";
 import { Button } from "@/components/ui/button";
 import { LoadSkeleton } from "./LoadSkeleton";
 import { signIn, useSession } from "@/lib/auth-client";
-import { api } from "@/trpc/react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 export default function CommentList() {
   const { ref, inView } = useInView();
@@ -18,15 +19,21 @@ export default function CommentList() {
     hasNextPage,
     isFetchingNextPage,
     isPending: loadingData,
-  } = api.guestbook.list.useInfiniteQuery(
-    {
-      limit: 10,
+  } = useInfiniteQuery({
+    queryKey: ["guestbook", "list", { limit: 10 }],
+    queryFn: async ({ pageParam }) => {
+      const { data, error } = await api.guestbook.get({
+        query: {
+          limit: 10,
+          cursor: pageParam,
+        },
+      });
+      if (error) throw error;
+      return data;
     },
-    {
-      getNextPageParam: (lastPage) => lastPage.nextCursor,
-      initialCursor: undefined,
-    },
-  );
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
+  });
 
   const handleSignIn = async () => {
     await signIn.social({ provider: "google", callbackURL: "/guestbook" });

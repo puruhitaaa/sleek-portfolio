@@ -33,8 +33,8 @@ import { Plus, Pencil } from "lucide-react";
 import { useState } from "react";
 import { useQueryState } from "nuqs";
 import { toast } from "sonner";
-import type { RouterOutput } from "@/lib/utils";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 const formSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -58,9 +58,19 @@ const categories = [
 
 type FormData = z.infer<typeof formSchema>;
 
+interface LogItemData {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  isPublished?: boolean | null;
+  createdAt?: Date | string;
+  updatedAt?: Date | string | null;
+}
+
 interface LogFormDialogProps {
   mode: "create" | "edit";
-  log?: RouterOutput["logs"]["list"]["items"][number];
+  log?: LogItemData;
   trigger?: React.ReactNode;
 }
 
@@ -72,8 +82,7 @@ export default function LogFormDialog({
   const [open, setOpen] = useState(false);
   const [category] = useQueryState("category");
   const [sort] = useQueryState("sort");
-
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -84,7 +93,18 @@ export default function LogFormDialog({
     },
   });
 
-  const createMutation = api.logs.create.useMutation({
+  const createMutation = useMutation({
+    mutationFn: async (values: FormData) => {
+      const { data, error } = await api.logs.post(values);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to create log",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Creating log...");
       return { toastLoading };
@@ -93,12 +113,7 @@ export default function LogFormDialog({
       toast.dismiss(context.toastLoading);
       toast.success("Log created successfully");
 
-      utils.logs.list.invalidate({
-        limit: 10,
-        category: category ?? undefined,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["logs", "list"] });
       form.reset();
       setOpen(false);
     },
@@ -108,7 +123,19 @@ export default function LogFormDialog({
     },
   });
 
-  const updateMutation = api.logs.update.useMutation({
+  const updateMutation = useMutation({
+    mutationFn: async (values: FormData & { id: string }) => {
+      const { id, ...body } = values;
+      const { data, error } = await api.logs({ id }).put(body);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to update log",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Updating log...");
       return { toastLoading };
@@ -117,12 +144,7 @@ export default function LogFormDialog({
       toast.dismiss(context.toastLoading);
       toast.success("Log updated successfully");
 
-      utils.logs.list.invalidate({
-        limit: 10,
-        category: category ?? undefined,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["logs", "list"] });
       form.reset();
       setOpen(false);
     },

@@ -10,11 +10,20 @@ import {
 } from "@/components/ui/popover";
 import { toast } from "sonner";
 import CommentFormDialog from "./CommentFormDialog";
-import type { RouterOutput } from "@/lib/utils";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 import { useSession } from "@/lib/auth-client";
 
-type CommentItemProps = RouterOutput["guestbook"]["list"]["items"][number];
+interface CommentItemProps {
+  id: string;
+  content: string;
+  createdAt: Date | string;
+  user: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  } | null;
+}
 
 export function CommentItem({
   id,
@@ -23,9 +32,20 @@ export function CommentItem({
   user,
 }: CommentItemProps) {
   const { data: authData } = useSession();
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
-  const deleteMutation = api.guestbook.delete.useMutation({
+  const deleteMutation = useMutation({
+    mutationFn: async (input: { id: string }) => {
+      const { data, error } = await api.guestbook({ id: input.id }).delete();
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to delete comment",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Deleting comment...");
       return { toastLoading };
@@ -33,8 +53,7 @@ export function CommentItem({
     onSuccess: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
       toast.success("Comment deleted successfully");
-
-      utils.guestbook.list.invalidate({ limit: 10 });
+      queryClient.invalidateQueries({ queryKey: ["guestbook", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
@@ -53,7 +72,7 @@ export function CommentItem({
           {user?.image ? (
             <Image
               src={user.image}
-              alt={user.name}
+              alt={user.name ?? "User"}
               width={24}
               height={24}
               className="h-8 w-8 rounded-full object-cover"
@@ -68,7 +87,7 @@ export function CommentItem({
 
             <div className="flex items-center gap-2">
               <time className="text-sm text-zinc-400 dark:text-zinc-500">
-                {format(createdAt, "MMM d, yyyy")}
+                {format(new Date(createdAt), "MMM d, yyyy")}
               </time>
               {canModify ? (
                 <Popover>

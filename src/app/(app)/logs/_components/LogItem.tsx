@@ -1,8 +1,7 @@
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { cn, type RouterOutput } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import LogFormDialog from "./LogFormDialog";
-import { useQueryState } from "nuqs";
 import {
   Popover,
   PopoverContent,
@@ -12,21 +11,41 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal, Pencil, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { useSession } from "@/lib/auth-client";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
+
+interface LogItemData {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  isPublished?: boolean | null;
+  createdAt: Date | string;
+  updatedAt?: Date | string | null;
+}
 
 type LogItemProps = {
-  log: RouterOutput["logs"]["list"]["items"][number];
+  log: LogItemData;
 };
 
 export function LogItem({ log }: LogItemProps) {
   const { title, content, createdAt } = log;
-  const [category] = useQueryState("category");
-  const [sort] = useQueryState("sort");
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const { data: authData } = useSession();
 
-  const deleteMutation = api.logs.delete.useMutation({
+  const deleteMutation = useMutation({
+    mutationFn: async (input: { id: string }) => {
+      const { data, error } = await api.logs({ id: input.id }).delete();
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to delete log",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Deleting log...");
       return { toastLoading };
@@ -35,12 +54,7 @@ export function LogItem({ log }: LogItemProps) {
       toast.dismiss(context?.toastLoading);
       toast.success("Log deleted successfully");
 
-      utils.logs.list.invalidate({
-        limit: 10,
-        category: category ?? undefined,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["logs", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);

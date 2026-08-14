@@ -4,7 +4,9 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { TrashIcon } from "lucide-react";
 import { fileToBase64 } from "@/components/minimal-tiptap/utils";
-import { api } from "@/trpc/react";
+import { useMutation } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
+
 interface UploadedImage {
   url: string;
   public_id: string;
@@ -27,13 +29,24 @@ export default function CustomImageUpload({
     e.preventDefault();
     fileInputRef.current?.click();
   };
-  const uploadImageMutation = api.cloudinary.uploadImage.useMutation({
+
+  const uploadImageMutation = useMutation({
+    mutationFn: async (input: { image: string; folder: string }) => {
+      const { data, error } = await api.cloudinary.upload.post(input);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to upload image",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const loadingToast = toast.loading("Uploading image...");
-
       return { loadingToast };
     },
-    onError: (error, _, context) => {
+    onError: (error: Error, _, context) => {
       toast.dismiss(context?.loadingToast);
       toast.error(error.message || "Failed to upload image");
     },
@@ -48,13 +61,23 @@ export default function CustomImageUpload({
     },
   });
 
-  const deleteImageMutation = api.cloudinary.deleteImage.useMutation({
+  const deleteImageMutation = useMutation({
+    mutationFn: async (input: { publicId: string }) => {
+      const { data, error } = await api.cloudinary.delete.post(input);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to delete image",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const loadingToast = toast.loading("Deleting image...");
-
       return { loadingToast };
     },
-    onError: (error, _, context) => {
+    onError: (error: Error, _, context) => {
       toast.dismiss(context?.loadingToast);
       toast.error(error.message || "Failed to delete image");
     },

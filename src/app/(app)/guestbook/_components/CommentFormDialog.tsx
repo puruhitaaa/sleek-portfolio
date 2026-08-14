@@ -20,7 +20,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Plus } from "lucide-react";
 import { useState } from "react";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 import { toast } from "sonner";
 
 const formSchema = z.object({
@@ -45,7 +46,7 @@ export default function CommentFormDialog({
   trigger,
 }: CommentFormDialogProps) {
   const [open, setOpen] = useState(false);
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -53,26 +54,50 @@ export default function CommentFormDialog({
       content: comment?.content ?? "",
     },
   });
-  const createMutation = api.guestbook.create.useMutation({
+
+  const createMutation = useMutation({
+    mutationFn: async (input: { content: string }) => {
+      const { data, error } = await api.guestbook.post(input);
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to create comment",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const loadingToast = toast.loading("Checking for profanity...");
-
       return { loadingToast };
     },
     onSuccess: (_, __, context) => {
       toast.dismiss(context?.loadingToast);
       toast.success("Comment added successfully");
-      utils.guestbook.list.invalidate({ limit: 10 });
+      queryClient.invalidateQueries({ queryKey: ["guestbook", "list"] });
       form.reset();
       setOpen(false);
     },
-    onError: (error, _, context) => {
+    onError: (error: Error, _, context) => {
       toast.dismiss(context?.loadingToast);
       toast.error(error.message);
     },
   });
 
-  const updateMutation = api.guestbook.update.useMutation({
+  const updateMutation = useMutation({
+    mutationFn: async (input: { id: string; content: string }) => {
+      const { data, error } = await api.guestbook({ id: input.id }).put({
+        content: input.content,
+      });
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to update comment",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Updating comment...");
       return { toastLoading };
@@ -80,11 +105,11 @@ export default function CommentFormDialog({
     onSuccess: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
       toast.success("Comment updated successfully");
-      utils.guestbook.list.invalidate({ limit: 10 });
+      queryClient.invalidateQueries({ queryKey: ["guestbook", "list"] });
       form.reset();
       setOpen(false);
     },
-    onError: (error, _, context) => {
+    onError: (error: Error, _, context) => {
       toast.dismiss(context?.toastLoading);
       toast.error(error.message);
     },

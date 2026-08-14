@@ -5,26 +5,34 @@ import { useEffect } from "react";
 import { useInView } from "react-intersection-observer";
 import { useQueryState } from "nuqs";
 import { LoadSkeleton } from "./LoadSkeleton";
-import { api } from "@/trpc/react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
 function LogList() {
   const { ref, inView } = useInView();
   const [category] = useQueryState("category");
   const [sort] = useQueryState("sort");
 
+  const currentSort = (sort === "oldest" ? "oldest" : "newest") as "newest" | "oldest";
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isPending } =
-    api.logs.list.useInfiniteQuery(
-      {
-        limit: 10,
-        category: category ?? undefined,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
+    useInfiniteQuery({
+      queryKey: ["logs", "list", { category: category ?? undefined, sort: currentSort }],
+      queryFn: async ({ pageParam }) => {
+        const { data, error } = await api.logs.get({
+          query: {
+            limit: 10,
+            cursor: pageParam,
+            category: category ?? undefined,
+            sort: currentSort,
+          },
+        });
+        if (error) throw error;
+        return data;
       },
-      {
-        initialCursor: undefined,
-        getNextPageParam: (lastPage) => lastPage.nextCursor,
-      },
-    );
+      initialPageParam: undefined as string | undefined,
+      getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
+    });
 
   useEffect(() => {
     if (inView && hasNextPage) {

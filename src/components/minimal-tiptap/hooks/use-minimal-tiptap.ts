@@ -22,7 +22,7 @@ import { cn } from "@/lib/utils";
 import { fileToBase64, getOutput, randomId } from "../utils";
 import { useThrottle } from "../hooks/use-throttle";
 import { toast } from "sonner";
-import { api } from "@/trpc/react";
+import { api } from "@/lib/eden";
 
 export interface UseMinimalTiptapEditorProps extends UseEditorOptions {
   value?: Content;
@@ -57,15 +57,13 @@ const createExtensions = (placeholder: string) => [
         // Convert file to base64
         const base64Image = await fileToBase64(file);
 
-        const uploadImageMutation = api.cloudinary.uploadImage.useMutation();
-
-        // Upload to Cloudinary using our API route
-        const res = await uploadImageMutation.mutateAsync({
+        // Upload to Cloudinary using our Elysia API route
+        const { data: res, error } = await api.cloudinary.upload.post({
           image: base64Image,
           folder: "posts",
         });
 
-        if (!res) {
+        if (error || !res) {
           throw new Error("Failed to upload image");
         }
 
@@ -99,13 +97,12 @@ const createExtensions = (placeholder: string) => [
     },
     onImageRemoved: async ({ id, src }) => {
       const imageId = "posts/" + src.split("/").pop()?.split(".")[0]!;
-      const deleteImageMutation = api.cloudinary.deleteImage.useMutation();
 
-      const res = await deleteImageMutation.mutateAsync({
+      const { data: res, error } = await api.cloudinary.delete.post({
         publicId: imageId,
       });
 
-      if (!res.success) {
+      if (error || !res?.success) {
         toast.error("Failed to delete image");
         return;
       }

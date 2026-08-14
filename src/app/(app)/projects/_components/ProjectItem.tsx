@@ -1,8 +1,7 @@
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { cn, type RouterOutput } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import Image from "next/image";
-import { useQueryState } from "nuqs";
 import {
   Popover,
   PopoverContent,
@@ -13,9 +12,22 @@ import { MoreHorizontal, Pencil, Pin, Trash } from "lucide-react";
 import { toast } from "sonner";
 import ProjectFormDialog from "./ProjectFormDialog";
 import { useSession } from "@/lib/auth-client";
-import { api } from "@/trpc/react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/eden";
 
-type ProjectItemProps = RouterOutput["project"]["list"]["items"][number];
+interface ProjectItemProps {
+  id: string;
+  name: string;
+  description: string;
+  image: string;
+  websiteLink?: string | null;
+  githubLink?: string | null;
+  youtubeLink?: string | null;
+  isPinned?: boolean | null;
+  isPublished?: boolean | null;
+  createdAt: Date | string;
+  updatedAt?: Date | string | null;
+}
 
 export function ProjectItem(project: ProjectItemProps) {
   const {
@@ -28,13 +40,24 @@ export function ProjectItem(project: ProjectItemProps) {
     createdAt,
     isPinned,
   } = project;
-  const [sort] = useQueryState("sort");
-
-  const utils = api.useUtils();
+  const queryClient = useQueryClient();
 
   const { data: authData } = useSession();
 
-  const deleteMutation = api.project.delete.useMutation({
+  const deleteMutation = useMutation({
+    mutationFn: async (input: { id: string; imageUrl: string }) => {
+      const { data, error } = await api.projects({ id: input.id }).delete({
+        imageUrl: input.imageUrl,
+      });
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to delete project",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading("Deleting project...");
       return { toastLoading };
@@ -43,11 +66,7 @@ export function ProjectItem(project: ProjectItemProps) {
       toast.dismiss(context?.toastLoading);
       toast.success("Project deleted successfully");
 
-      utils.project.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["projects", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
@@ -55,7 +74,18 @@ export function ProjectItem(project: ProjectItemProps) {
     },
   });
 
-  const togglePinMutation = api.project.togglePin.useMutation({
+  const togglePinMutation = useMutation({
+    mutationFn: async (input: { id: string }) => {
+      const { data, error } = await api.projects({ id: input.id }).pin.patch();
+      if (error) {
+        throw new Error(
+          typeof error.value === "object" && error.value && "message" in error.value
+            ? String(error.value.message)
+            : "Failed to toggle pin",
+        );
+      }
+      return data;
+    },
     onMutate: () => {
       const toastLoading = toast.loading(
         `${isPinned ? "Unpinning" : "Pinning"} project...`,
@@ -66,11 +96,7 @@ export function ProjectItem(project: ProjectItemProps) {
       toast.dismiss(context?.toastLoading);
       toast.success(`Project ${isPinned ? "unpinned" : "pinned"} successfully`);
 
-      utils.project.list.invalidate({
-        limit: 10,
-        sort:
-          (sort as "newest" | "oldest") ?? ("newest" as "newest" | "oldest"),
-      });
+      queryClient.invalidateQueries({ queryKey: ["projects", "list"] });
     },
     onError: (_, __, context) => {
       toast.dismiss(context?.toastLoading);
