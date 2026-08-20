@@ -14,11 +14,14 @@ import { Eye, Edit3, Save, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type BioData = {
-  id?: string;
+  id: string;
+  name?: string;
+  role?: string;
+  avatar?: string;
   greeting: string;
   content: string;
-  createdAt?: Date | string;
-  updatedAt?: Date | string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 interface BioSectionProps {
@@ -51,8 +54,13 @@ export default function BioSection({ initialData }: BioSectionProps) {
     },
     initialData: initialData ?? {
       id: "default",
+      name: siteConfig.name,
+      role: siteConfig.role,
+      avatar: "/assets/images/home-pic.webp",
       greeting: siteConfig.bio.greeting,
       content: DEFAULT_BIO_CONTENT,
+      createdAt: new Date(),
+      updatedAt: new Date(),
     },
   });
 

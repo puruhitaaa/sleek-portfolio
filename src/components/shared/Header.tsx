@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import { siteConfig } from "@/site";
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ModeToggle } from "./ModeToggle";
@@ -10,6 +9,8 @@ import { Button } from "../ui/button";
 import { LogIn, LogOut } from "lucide-react";
 import { signIn, signOut, useSession } from "@/lib/auth-client";
 import { useEffect, useRef } from "react";
+
+import HeaderProfile from "./HeaderProfile";
 
 function Header() {
   const pathname = usePathname();
@@ -36,23 +37,8 @@ function Header() {
 
   return (
     <header className="space-y-6 px-4 py-8">
-      <div className="group flex items-center gap-4">
-        <Image
-          src="/assets/images/home-pic.webp"
-          alt={siteConfig.name}
-          width={48}
-          height={48}
-          className="rounded-full grayscale transition-all duration-300 group-hover:grayscale-0"
-        />
-        <div>
-          <h1 className="text-xl font-medium text-zinc-900 dark:text-zinc-100">
-            {siteConfig.name}
-          </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {siteConfig.role}
-          </p>
-        </div>
-      </div>
+      <HeaderProfile />
+
 
       {/* Navigation */}
       <nav className="rounded-lg border border-stone-800/90 bg-stone-900/80 p-[0.4rem] backdrop-blur-md">

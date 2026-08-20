@@ -21,6 +21,9 @@ export const bioRouter = new Elysia({ prefix: "/bio" })
     if (!existing) {
       return {
         id: "default",
+        name: siteConfig.name,
+        role: siteConfig.role,
+        avatar: "/assets/images/home-pic.webp",
         greeting: siteConfig.bio.greeting,
         content: DEFAULT_BIO_CONTENT,
         createdAt: new Date(),
@@ -39,19 +42,34 @@ export const bioRouter = new Elysia({ prefix: "/bio" })
         });
       }
 
+      const existing = await db
+        .select()
+        .from(bio)
+        .where(eq(bio.id, "default"))
+        .limit(1)
+        .then((res) => res[0]);
+
+      const valuesToInsert = {
+        id: "default",
+        name: body.name ?? existing?.name ?? siteConfig.name,
+        role: body.role ?? existing?.role ?? siteConfig.role,
+        avatar: body.avatar ?? existing?.avatar ?? "/assets/images/home-pic.webp",
+        greeting: body.greeting ?? existing?.greeting ?? siteConfig.bio.greeting,
+        content: body.content ?? existing?.content ?? DEFAULT_BIO_CONTENT,
+        updatedAt: new Date(),
+      };
+
       const [updated] = await db
         .insert(bio)
-        .values({
-          id: "default",
-          greeting: body.greeting,
-          content: body.content,
-          updatedAt: new Date(),
-        })
+        .values(valuesToInsert)
         .onConflictDoUpdate({
           target: bio.id,
           set: {
-            greeting: body.greeting,
-            content: body.content,
+            name: valuesToInsert.name,
+            role: valuesToInsert.role,
+            avatar: valuesToInsert.avatar,
+            greeting: valuesToInsert.greeting,
+            content: valuesToInsert.content,
             updatedAt: new Date(),
           },
         })
@@ -62,8 +80,11 @@ export const bioRouter = new Elysia({ prefix: "/bio" })
     {
       isAuth: true,
       body: t.Object({
-        greeting: t.String({ minLength: 1 }),
-        content: t.String({ minLength: 1 }),
+        name: t.Optional(t.String({ minLength: 1 })),
+        role: t.Optional(t.String({ minLength: 1 })),
+        avatar: t.Optional(t.String({ minLength: 1 })),
+        greeting: t.Optional(t.String({ minLength: 1 })),
+        content: t.Optional(t.String({ minLength: 1 })),
       }),
     },
   );

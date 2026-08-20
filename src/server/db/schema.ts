@@ -153,9 +153,13 @@ export const comments = pgTable(
 
 export const bio = pgTable("bio", {
   id: text("id").primaryKey().default("default"),
+  name: text("name").default("Baiq").notNull(),
+  role: text("role").default("Student • Developer").notNull(),
+  avatar: text("avatar").default("/assets/images/home-pic.webp").notNull(),
   greeting: text("greeting").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
 
