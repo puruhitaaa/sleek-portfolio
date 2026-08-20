@@ -22,6 +22,13 @@
       "when": 1784472000000,
       "tag": "0002_cv_site_sync_outbox",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1787197177498,
+      "tag": "0003_bouncy_gertrude_yorkes",
+      "breakpoints": true
     }
   ]
 }

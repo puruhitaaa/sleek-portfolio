@@ -1,23 +1,23 @@
 import SpotifyWidget from "@/components/widgets/SpotifyWidget";
 import { siteConfig } from "@/site";
+import BioSection from "./_components/BioSection";
+import { db } from "@/server/db";
+import { bio } from "@/server/db/schema";
+import { eq } from "drizzle-orm";
 
 export default async function Home() {
+  const initialBio = await db
+    .select()
+    .from(bio)
+    .where(eq(bio.id, "default"))
+    .limit(1)
+    .then((res) => res[0])
+    .catch(() => undefined);
+
   return (
     <div className="space-y-8">
-      <section className="space-y-4">
-        <h2 className="font-medium text-zinc-900 dark:text-zinc-100">
-          {siteConfig.bio.greeting}
-        </h2>
+      <BioSection initialData={initialBio} />
 
-        {siteConfig.bio.paragraphs.map((paragraph, index) => (
-          <p
-            key={index}
-            className="text-justify text-zinc-600 dark:text-zinc-400"
-          >
-            {paragraph}
-          </p>
-        ))}
-      </section>
 
       <section>
         <SpotifyWidget />

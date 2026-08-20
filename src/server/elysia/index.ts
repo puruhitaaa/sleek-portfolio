@@ -7,6 +7,7 @@ import { postsRouter } from "./routers/posts";
 import { projectsRouter } from "./routers/projects";
 import { spotifyRouter } from "./routers/spotify";
 import { cloudinaryRouter } from "./routers/cloudinary";
+import { bioRouter } from "./routers/bio";
 
 export const app = new Elysia({ prefix: "/api" })
   .use(cors())
@@ -26,6 +27,7 @@ export const app = new Elysia({ prefix: "/api" })
           { name: "Logs", description: "Development and activity logs" },
           { name: "Spotify", description: "Spotify now playing widget" },
           { name: "Cloudinary", description: "Image upload and management" },
+          { name: "Bio", description: "Biography and introduction content" },
         ],
       },
     }),
@@ -35,6 +37,8 @@ export const app = new Elysia({ prefix: "/api" })
   .use(postsRouter)
   .use(projectsRouter)
   .use(spotifyRouter)
-  .use(cloudinaryRouter);
+  .use(cloudinaryRouter)
+  .use(bioRouter);
+
 
 export type App = typeof app;

@@ -150,3 +150,12 @@ export const comments = pgTable(
     indexes: [index("Comment_user_id_idx").on(table.userId)],
   }),
 );
+
+export const bio = pgTable("bio", {
+  id: text("id").primaryKey().default("default"),
+  greeting: text("greeting").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
