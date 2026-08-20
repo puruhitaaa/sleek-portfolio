@@ -33,16 +33,6 @@ export default function HeaderProfile() {
       if (error) throw new Error("Failed to fetch profile");
       return data;
     },
-    initialData: {
-      id: "default",
-      name: siteConfig.name,
-      role: siteConfig.role,
-      avatar: DEFAULT_AVATAR,
-      greeting: siteConfig.bio.greeting,
-      content: siteConfig.bio.paragraphs.map((p) => `<p>${p}</p>`).join(""),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
   });
 
   const [isEditing, setIsEditing] = useState(false);

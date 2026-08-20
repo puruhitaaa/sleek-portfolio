@@ -52,16 +52,7 @@ export default function BioSection({ initialData }: BioSectionProps) {
       }
       return data;
     },
-    initialData: initialData ?? {
-      id: "default",
-      name: siteConfig.name,
-      role: siteConfig.role,
-      avatar: "/assets/images/home-pic.webp",
-      greeting: siteConfig.bio.greeting,
-      content: DEFAULT_BIO_CONTENT,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
+    initialData,
   });
 
   const [mode, setMode] = useState<"render" | "wysiwyg">("render");

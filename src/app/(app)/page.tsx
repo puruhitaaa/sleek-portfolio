@@ -5,6 +5,8 @@ import { db } from "@/server/db";
 import { bio } from "@/server/db/schema";
 import { eq } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 export default async function Home() {
   const initialBio = await db
     .select()
